@@ -1,0 +1,24 @@
+digraph "bribe-1" {
+  compound=true;
+  rankdir=TB;
+  node [shape=box, fontname="Helvetica"];
+  edge [fontname="Helvetica", fontsize=10];
+  subgraph cluster_0 {
+    label="villain: controls(villain, president)";
+    style=rounded;
+    s2 [label="bribe(villain, president, money)"];
+    s4 [label="coerce(villain, hero, has(villain, money))"];
+  }
+  subgraph cluster_1 {
+    label="hero: has(villain, money)";
+    style=rounded;
+    s3 [label="give(hero, villain, money)"];
+  }
+  s0 [label="init", shape=ellipse, style=filled, fillcolor=lightgrey];
+  s1 [label="goal", shape=ellipse, style=filled, fillcolor=lightgrey];
+  s0 -> s3 [label="has(hero, money)"];
+  s2 -> s1 [label="corrupt(president)"];
+  s3 -> s2 [label="has(villain, money)"];
+  s0 -> s2 [label="intends(villain, controls(villain, president))", style=dotted, arrowhead=empty, lhead=cluster_0];
+  s4 -> s3 [label="intends(hero, has(villain, money))", style=dotted, arrowhead=empty, lhead=cluster_1];
+}

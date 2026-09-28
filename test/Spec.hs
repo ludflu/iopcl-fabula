@@ -5,6 +5,7 @@ import GroundSpec qualified
 import HeuristicSpec qualified
 import IntentSpec qualified
 import JointSpec qualified
+import NarrateSpec qualified
 import TraceSpec qualified
 import OrderSpec qualified
 import ParserSpec qualified
@@ -28,3 +29,4 @@ main = hspec $ do
   describe "Author preferences" PreferenceSpec.spec
   describe "Distinct, reproducible Stories" StoriesSpec.spec
   describe "Parser" ParserSpec.spec
+  describe "Narration and DOT" NarrateSpec.spec
