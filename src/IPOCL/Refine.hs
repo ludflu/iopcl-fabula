@@ -11,6 +11,7 @@ module IPOCL.Refine
 
 import Control.Monad (foldM)
 import Data.IntMap.Strict qualified as IM
+import Data.IntSet qualified as IS
 import Data.List (sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -58,7 +59,11 @@ data Expansion
 
 -- | All flaws of a plan: threats first, then the rest in tie-break order.
 flaws :: Env -> Plan -> [Flaw]
-flaws _ plan = causalThreats plan ++ [OpenCondition s l | (s, l) <- planOpenConds plan]
+flaws _ plan =
+  causalThreats plan
+    ++ [OpenMotivation (frameId f) | f <- IM.elems (planFrames plan), frameMotivator f == Nothing]
+    ++ [OpenCondition s l | (s, l) <- planOpenConds plan]
+    ++ [IntentFlaw s c | (s, c) <- planPendingIntent plan]
 
 isThreat :: Flaw -> Bool
 isThreat = \case
@@ -70,7 +75,9 @@ isThreat = \case
 -- Threats are repaired first; otherwise the flaw with the fewest children.
 expand :: Env -> Plan -> Expansion
 expand env plan = case flaws env plan of
-  [] -> Solution
+  []
+    | envMode env == IPOCL && not (null (orphans plan)) -> DeadEnd
+    | otherwise -> Solution
   f : _ | isThreat f -> result f (refine env plan f)
   fs ->
     let scored = [(length kids, i, fl, kids) | (i, fl) <- zip [0 :: Int ..] fs, let kids = refine env plan fl]
@@ -85,6 +92,7 @@ refine :: Env -> Plan -> Flaw -> [Child]
 refine env plan = \case
   OpenCondition s p -> openCondition env plan s p
   CausalThreat t l -> resolveCausalThreat env plan t l
+  OpenMotivation c -> openMotivation env plan c
   _ -> []
 
 -- Causal threats ------------------------------------------------------------
@@ -135,18 +143,70 @@ resolveCausalThreat env plan t l =
 
 openCondition :: Env -> Plan -> StepId -> Literal -> [Child]
 openCondition env plan0 sNeed p =
-  [ Child plan' (establishReason plan' est p)
-  | est <- establishers env plan sNeed p
-  , Just plan' <- [finish est]
+  [ Child plan' (establishReason plan' est p <> note)
+  | est <- establishers env plan [sNeed] p
+  , Just linked <- [link est]
+  , (plan', note) <- afterEstablish env est linked
   ]
   where
     plan = plan0 {planOpenConds = filter (/= (sNeed, p)) (planOpenConds plan0)}
-    finish (Establisher pl sAdd _) = do
+    link (Establisher pl sAdd _) = do
       o <- addOrder sAdd sNeed (planOrder pl)
-      keep env pl {planOrder = o, planLinks = Set.insert (CausalLink sAdd p sNeed) (planLinks pl)}
+      Just pl {planOrder = o, planLinks = Set.insert (CausalLink sAdd p sNeed) (planLinks pl)}
+
+-- Motivation planning -------------------------------------------------------
+
+-- | Find a Motivating step for a Frame and order it before the whole Interval.
+openMotivation :: Env -> Plan -> FrameId -> [Child]
+openMotivation env plan fid = case IM.lookup fid (planFrames plan) of
+  Nothing -> []
+  Just f ->
+    let members = IS.toList (frameInterval f)
+        motivate (Establisher pl m _) = do
+          o <- foldM (\acc s -> addOrder m s acc) (planOrder pl) members
+          Just pl {planOrder = o, planFrames = IM.insert fid f {frameMotivator = Just m} (planFrames pl)}
+     in [ Child plan' (establishReason plan' est (frameIntention f) <> note)
+        | est <- establishers env plan members (frameIntention f)
+        , Just motivated <- [motivate est]
+        , (plan', note) <- afterEstablish env est motivated
+        ]
+
+-- Shared by causal and motivation planning: frame discovery on new Steps,
+-- then bookkeeping and pruning.
+afterEstablish :: Env -> Establisher -> Plan -> [(Plan, Text)]
+afterEstablish env est pl =
+  [ (pl'', note)
+  | (pl', note) <- if estNew est then discoverFrames env (estStep est) pl else [(pl, "")]
+  , Just pl'' <- [finalize env pl']
+  ]
+
+finalize :: Env -> Plan -> Maybe Plan
+finalize = keep
 
 keep :: Env -> Plan -> Maybe Plan
 keep env pl = if envPrune env pl then Nothing else Just pl
+
+-- Frame discovery -------------------------------------------------------------
+
+-- | For a new non-Happening Step, each Actor independently either intends one
+-- of the Step's effects (a new Frame with this Step as its final Step) or not.
+discoverFrames :: Env -> StepId -> Plan -> [(Plan, Text)]
+discoverFrames env s plan = case IM.lookup s (planSteps plan) of
+  Just st | envMode env == IPOCL, not (stepHappening st) -> foldM (choose st) (plan, "") (stepActors st)
+  _ -> [(plan, "")]
+  where
+    choose st (pl, note) actor =
+      (pl, note)
+        : [ (pl', note <> "; " <> symbolText actor <> " intends " <> prettyLiteral (resolveLiteral (planBindings pl) e))
+          | e <- stepEff st
+          , Just pl' <- [newFrame pl actor e]
+          ]
+    newFrame pl actor e
+      | any (\f -> resolvedGoal pl f == resolveLiteral (planBindings pl) e) (framesOf pl actor) = Nothing
+      | otherwise =
+          let k = planNextFrame pl
+              f = Frame k actor e (Just s) (IS.singleton s) Nothing
+           in Just pl {planFrames = IM.insert k f (planFrames pl), planNextFrame = k + 1}
 
 establishReason :: Plan -> Establisher -> Literal -> Text
 establishReason pl (Establisher _ s isNew) p =
@@ -163,18 +223,16 @@ data Establisher = Establisher
   , estNew :: !Bool
   }
 
--- | Ways to make @p@ true, via existing Steps (including the initial state
--- under the closed-world assumption) or a new Step. The consumer is never used
--- as its own establisher.
-establishers :: Env -> Plan -> StepId -> Literal -> [Establisher]
-establishers env plan consumer p = existing ++ closedWorld ++ new
+-- | Ways to make @p@ true before all of @later@, via existing Steps (including
+-- the initial state under the closed-world assumption) or a new Step.
+establishers :: Env -> Plan -> [StepId] -> Literal -> [Establisher]
+establishers env plan later p = existing ++ closedWorld ++ new
   where
     b = planBindings plan
     existing =
       [ Establisher plan {planBindings = b'} (stepId s) False
       | s <- planStepList plan
-      , stepId s /= consumer
-      , possiblyBefore (planOrder plan) (stepId s) consumer
+      , all (possiblyBefore (planOrder plan) (stepId s)) later
       , e <- stepEff s
       , Just b' <- [unifyLiterals b e p]
       ]

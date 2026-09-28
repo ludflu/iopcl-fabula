@@ -18,11 +18,13 @@ module IPOCL.Plan
   , frameIntention
   , framesOf
   , isMotivator
+  , orphans
   ) where
 
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet (IntSet)
+import Data.IntSet qualified as IS
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -147,6 +149,16 @@ frameIntention f = pos (Atom intendsPredicate [TSym (frameCharacter f), TLit (fr
 
 framesOf :: Plan -> Symbol -> [Frame]
 framesOf plan c = filter ((== c) . frameCharacter) (IM.elems (planFrames plan))
+
+-- | (Step, Actor) pairs of non-Happening Steps outside every Frame of that Actor.
+orphans :: Plan -> [(StepId, Symbol)]
+orphans plan =
+  [ (stepId s, a)
+  | s <- actionSteps plan
+  , not (stepHappening s)
+  , a <- stepActors s
+  , not (any (IS.member (stepId s) . frameInterval) (framesOf plan a))
+  ]
 
 isMotivator :: Plan -> StepId -> Bool
 isMotivator plan s = any ((== Just s) . frameMotivator) (IM.elems (planFrames plan))
