@@ -56,25 +56,80 @@ data Expansion
   | DeadEnd
   | Refined !Flaw ![Child]
 
--- | All flaws of a plan, in selection-priority order within each class.
+-- | All flaws of a plan: threats first, then the rest in tie-break order.
 flaws :: Env -> Plan -> [Flaw]
-flaws _ plan = [OpenCondition s l | (s, l) <- planOpenConds plan]
+flaws _ plan = causalThreats plan ++ [OpenCondition s l | (s, l) <- planOpenConds plan]
+
+isThreat :: Flaw -> Bool
+isThreat = \case
+  CausalThreat {} -> True
+  IntentionalThreat {} -> True
+  _ -> False
 
 -- | Select a flaw and produce its children, or recognise a solution / dead end.
+-- Threats are repaired first; otherwise the flaw with the fewest children.
 expand :: Env -> Plan -> Expansion
 expand env plan = case flaws env plan of
   [] -> Solution
+  f : _ | isThreat f -> result f (refine env plan f)
   fs ->
     let scored = [(length kids, i, fl, kids) | (i, fl) <- zip [0 :: Int ..] fs, let kids = refine env plan fl]
      in case sortOn (\(k, i, _, _) -> (k, i)) scored of
-          (0, _, _, _) : _ -> DeadEnd
-          (_, _, f, cs) : _ -> Refined f cs
+          (_, _, f, cs) : _ -> result f cs
           [] -> Solution
+  where
+    result _ [] = DeadEnd
+    result f cs = Refined f cs
 
 refine :: Env -> Plan -> Flaw -> [Child]
 refine env plan = \case
   OpenCondition s p -> openCondition env plan s p
+  CausalThreat t l -> resolveCausalThreat env plan t l
   _ -> []
+
+-- Causal threats ------------------------------------------------------------
+
+-- | Steps that may fall inside a causal link and assert the negation of its condition.
+causalThreats :: Plan -> [Flaw]
+causalThreats plan =
+  [ CausalThreat (stepId t) l
+  | l <- Set.toList (planLinks plan)
+  , t <- planStepList plan
+  , stepId t /= linkFrom l
+  , stepId t /= linkTo l
+  , possiblyBefore o (linkFrom l) (stepId t)
+  , possiblyBefore o (stepId t) (linkTo l)
+  , any (\e -> unifyLiterals b e (negateLit (linkCond l)) /= Nothing) (stepEff t)
+  ]
+  where
+    o = planOrder plan
+    b = planBindings plan
+
+resolveCausalThreat :: Env -> Plan -> StepId -> CausalLink -> [Child]
+resolveCausalThreat env plan t l =
+  [Child p' ("promote step " <> tshow t) | Just p' <- [ordered (linkTo l) t]]
+    ++ [Child p' ("demote step " <> tshow t) | Just p' <- [ordered t (linkFrom l)]]
+    ++ [Child p' ("separate step " <> tshow t) | p' <- separations]
+  where
+    b = planBindings plan
+    ordered a c = do
+      o <- addOrder a c (planOrder plan)
+      keep env plan {planOrder = o, planThreatOrders = Set.insert (a, c) (planThreatOrders plan)}
+    cond = resolveLiteral b (negateLit (linkCond l))
+    -- For each clobbering effect that only possibly codesignates, forbid one
+    -- of the argument equalities it relies on.
+    separations =
+      [ plan {planBindings = b'}
+      | Just step <- [IM.lookup t (planSteps plan)]
+      , e <- map (resolveLiteral b) (stepEff step)
+      , litPositive e == litPositive cond
+      , unifyLiterals b e cond /= Nothing
+      , e /= cond
+      , (x, y) <- zip (atomArgs (litAtom e)) (atomArgs (litAtom cond))
+      , x /= y
+      , Just b' <- [addNeq b x y]
+      , not (envPrune env plan {planBindings = b'})
+      ]
 
 -- Causal planning ---------------------------------------------------------
 
