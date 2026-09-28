@@ -5,6 +5,7 @@ import GroundSpec qualified
 import HeuristicSpec qualified
 import IntentSpec qualified
 import JointSpec qualified
+import NarrateSpec qualified
 import TraceSpec qualified
 import OrderSpec qualified
 import ParserSpec qualified
@@ -24,3 +25,4 @@ main = hspec $ do
   describe "Trace" TraceSpec.spec
   describe "Heuristic search" HeuristicSpec.spec
   describe "Parser" ParserSpec.spec
+  describe "Narration and DOT" NarrateSpec.spec

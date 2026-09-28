@@ -37,6 +37,8 @@ library
         IPOCL.Search
         IPOCL.Validate
         IPOCL.Linearize
+        IPOCL.Narrate
+        IPOCL.Dot
         IPOCL.Parser
         IPOCL.Printer
         IPOCL.Domains.Tiny
@@ -80,6 +82,7 @@ test-suite spec
         TraceSpec
         HeuristicSpec
         SmallDomains
+        NarrateSpec
     build-depends:
         base,
         containers,

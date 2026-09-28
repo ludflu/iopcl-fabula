@@ -10,6 +10,8 @@ import IPOCL.Domains.Aladdin
 import IPOCL.Domains.Bribe
 import IPOCL.Domains.Tiny
 import IPOCL.Domains.Tower
+import IPOCL.Dot
+import IPOCL.Narrate
 import IPOCL.Parser
 import IPOCL.Report
 import IPOCL.Syntax
@@ -32,6 +34,8 @@ data SolveOpts = SolveOpts
   , optHeuristic :: HeuristicChoice
   , optWeight :: Double
   , optGreedy :: Bool
+  , optNarrate :: Bool
+  , optDot :: Maybe FilePath
   }
 
 builtins :: [(Text, Problem)]
@@ -54,6 +58,8 @@ solveOpts =
     <*> option (eitherReader readHeuristic) (long "heuristic" <> metavar "default|paper|blind" <> value Additive <> help "Search heuristic")
     <*> option auto (long "weight" <> metavar "W" <> value 2 <> help "Weight on the heuristic in weighted A* (default 2)")
     <*> switch (long "greedy" <> help "Greedy best-first: ignore the cost so far")
+    <*> (not <$> switch (long "no-narrate" <> help "Do not print the narration"))
+    <*> optional (strOption (long "dot" <> metavar "FILE" <> help "Write Story 1 as Graphviz to FILE; Story N>1 goes to FILE with -N before the extension"))
   where
     readMode = \case
       "ipocl" -> Right IPOCL
@@ -106,6 +112,10 @@ run p opts = do
   forM_ (zip [1 :: Int ..] (resultStories r)) $ \(i, plan) -> do
     TIO.putStrLn ("Story " <> T.pack (show i))
     TIO.putStr (renderPlan plan)
+    when (optNarrate opts) $ do
+      TIO.putStrLn "Narration:"
+      TIO.putStr (T.unlines (map ("  " <>) (T.lines (narrate p plan))))
+    forM_ (optDot opts) $ \file -> TIO.writeFile (dotFileFor file i) (planToDot p plan)
     let problems = validatePlan (optMode opts) p plan
     unless (null problems) $ do
       TIO.putStrLn "INVALID:"
@@ -118,6 +128,16 @@ run p opts = do
         <> T.pack (show (resultGenerated r))
     )
   when (null (resultStories r)) exitFailure
+
+-- | @out.dot@ for Story 1, then @out-2.dot@, @out-3.dot@, ...
+dotFileFor :: FilePath -> Int -> FilePath
+dotFileFor file 1 = file
+dotFileFor file i = case break (== '.') (reverse name) of
+  (ext, '.' : stem) | not (null stem) -> dir <> reverse stem <> suffix <> "." <> reverse ext
+  _ -> file <> suffix
+  where
+    (dir, name) = let (n, d) = break (== '/') (reverse file) in (reverse d, reverse n)
+    suffix = "-" <> show i
 
 die' :: Text -> IO a
 die' msg = TIO.hPutStrLn stderr msg >> exitFailure
