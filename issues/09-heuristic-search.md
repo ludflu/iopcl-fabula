@@ -12,9 +12,9 @@
 
 **Blocked by:** 06 (Joint actions and intentional threats).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Tower-variant, Bribe, and reduced-Aladdin runs each finish in under 10 s on a laptop, as recorded by a benchmark.
-- [ ] Unreachable ground actions are never offered as establishers.
-- [ ] Hitting any limit reports the stats and whatever solutions were found, and does not crash.
-- [ ] Heuristic search returns the same solution validity as breadth-first search on small problems (property test).
+- [x] Tower-variant, Bribe, and reduced-Aladdin runs each finish in under 10 s on a laptop, as recorded by a benchmark.
+- [x] Unreachable ground actions are never offered as establishers.
+- [x] Hitting any limit reports the stats and whatever solutions were found, and does not crash.
+- [x] Heuristic search returns the same solution validity as breadth-first search on small problems (property test).

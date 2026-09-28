@@ -32,6 +32,7 @@ library
         IPOCL.Plan
         IPOCL.Refine
         IPOCL.Report
+        IPOCL.Heuristic
         IPOCL.Trace
         IPOCL.Search
         IPOCL.Validate
@@ -73,6 +74,7 @@ test-suite spec
         IntentSpec
         JointSpec
         TraceSpec
+        HeuristicSpec
         SmallDomains
     build-depends:
         base,

@@ -20,8 +20,8 @@ data SearchConfig = SearchConfig
   { scWeight :: !Double
   , scGreedy :: !Bool
   , scSeed :: !Int
-  , scCost :: Plan -> Int
-  -- ^ @g@: cost of the plan so far.
+  , scCost :: Int -> Plan -> Int
+  -- ^ @g@: cost of the plan so far, given its depth in the search tree.
   , scHeuristic :: Plan -> Maybe Int
   -- ^ @h@: estimated remaining cost; 'Nothing' marks a plan as hopeless.
   , scSignature :: Maybe (Plan -> String)
@@ -34,7 +34,7 @@ defaultSearchConfig =
     { scWeight = 1
     , scGreedy = False
     , scSeed = 0
-    , scCost = \p -> length (actionSteps p) + IM.size (planFrames p)
+    , scCost = \_ p -> length (actionSteps p) + IM.size (planFrames p)
     , scHeuristic = \p -> Just (length (planOpenConds p) + length (planPendingIntent p))
     , scSignature = Nothing
     }
@@ -52,22 +52,23 @@ data SearchEvent
   | FoundSolution {evNode :: !Int, evPlan :: !Plan}
 
 data Node = Node
-  { nParent :: !(Maybe Int)
+  { nDepth :: !Int
+  , nParent :: !(Maybe Int)
   , nReason :: !Text
   , nPlan :: !Plan
   }
 
 -- | Explore until the frontier is exhausted; the stream ends there.
 search :: Env -> SearchConfig -> Plan -> [SearchEvent]
-search env cfg root = go (maybe Set.empty Set.singleton (key 0 root)) (IM.singleton 0 (Node Nothing "initial plan" root)) 1 seen0
+search env cfg root = go (maybe Set.empty Set.singleton (key 0 0 root)) (IM.singleton 0 (Node 0 Nothing "initial plan" root)) 1 seen0
   where
     seen0 = maybe Set.empty (\sig -> Set.singleton (sig root)) (scSignature cfg)
-    key i p = case priority p of
+    key d i p = case priority d p of
       Just f -> Just (f, mix64 (fromIntegral (scSeed cfg) `xor` fromIntegral i), i)
       Nothing -> Nothing
-    priority p = do
+    priority d p = do
       h <- scHeuristic cfg p
-      let g = if scGreedy cfg then 0 else fromIntegral (scCost cfg p)
+      let g = if scGreedy cfg then 0 else fromIntegral (scCost cfg d p)
       Just (g + scWeight cfg * fromIntegral h :: Double)
     go frontier nodes next seen = case Set.minView frontier of
       Nothing -> []
@@ -84,8 +85,8 @@ search env cfg root = go (maybe Set.empty Set.singleton (key 0 root)) (IM.single
               Refined f cs ->
                 let (kids, seen') = dedupe seen cs
                     numbered = zip [next ..] kids
-                    frontier' = foldr (\(j, c) acc -> maybe acc (`Set.insert` acc) (key j (childPlan c))) rest numbered
-                    nodes'' = foldr (\(j, c) acc -> IM.insert j (Node (Just i) (childReason c) (childPlan c)) acc) nodes' numbered
+                    frontier' = foldr (\(j, c) acc -> maybe acc (`Set.insert` acc) (key (nDepth node + 1) j (childPlan c))) rest numbered
+                    nodes'' = foldr (\(j, c) acc -> IM.insert j (Node (nDepth node + 1) (Just i) (childReason c) (childPlan c)) acc) nodes' numbered
                  in Visited i (nParent node) (nReason node) (Just f) False (length cs) p
                       : go frontier' nodes'' (next + length kids) seen'
     dedupe seen cs = case scSignature cfg of

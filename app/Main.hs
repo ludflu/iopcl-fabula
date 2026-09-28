@@ -26,6 +26,9 @@ data SolveOpts = SolveOpts
   , optTimeout :: Maybe Double
   , optCount :: Int
   , optTrace :: Maybe FilePath
+  , optHeuristic :: HeuristicChoice
+  , optWeight :: Double
+  , optGreedy :: Bool
   }
 
 builtins :: [(Text, Problem)]
@@ -45,11 +48,19 @@ solveOpts =
     <*> optional (option auto (long "timeout" <> metavar "SECONDS" <> help "Wall-clock limit"))
     <*> option auto (long "count" <> metavar "N" <> value 1 <> help "Number of distinct stories")
     <*> optional (strOption (long "trace" <> metavar "FILE" <> help "Write a search trace to FILE"))
+    <*> option (eitherReader readHeuristic) (long "heuristic" <> metavar "default|paper|blind" <> value Additive <> help "Search heuristic")
+    <*> option auto (long "weight" <> metavar "W" <> value 2 <> help "Weight on the heuristic in weighted A* (default 2)")
+    <*> switch (long "greedy" <> help "Greedy best-first: ignore the cost so far")
   where
     readMode = \case
       "ipocl" -> Right IPOCL
       "pocl" -> Right POCL
       m -> Left ("unknown mode " <> m)
+    readHeuristic = \case
+      "default" -> Right Additive
+      "paper" -> Right Paper
+      "blind" -> Right Blind
+      h -> Left ("unknown heuristic " <> h)
 
 commandP :: Parser Command
 commandP =
@@ -79,6 +90,9 @@ run p opts = do
           , cfgMaxExpanded = maybe (cfgMaxExpanded defaultSolveConfig) Just (optMaxNodes opts)
           , cfgTimeout = optTimeout opts
           , cfgCount = optCount opts
+          , cfgHeuristic = optHeuristic opts
+          , cfgWeight = optWeight opts
+          , cfgGreedy = optGreedy opts
           }
   r <- case optTrace opts of
     Nothing -> solve cfg p

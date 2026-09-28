@@ -2,6 +2,7 @@
 module IPOCL.Refine
   ( Env (..)
   , mkEnv
+  , mkEnvWith
   , Child (..)
   , Expansion (..)
   , flaws

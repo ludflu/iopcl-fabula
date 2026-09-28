@@ -6,11 +6,14 @@ module IPOCL
   , Result (..)
   , solve
   , solvePure
+  , HeuristicChoice (..)
   , module IPOCL.Plan
   ) where
 
 import Data.IORef
 import GHC.Clock (getMonotonicTime)
+import IPOCL.Ground
+import IPOCL.Heuristic
 import IPOCL.Plan
 import IPOCL.Refine
 import IPOCL.Search
@@ -24,6 +27,12 @@ data SolveConfig = SolveConfig
   , cfgCount :: !Int
   -- ^ How many Stories to return.
   , cfgTrace :: !(Maybe (SearchEvent -> IO ()))
+  , cfgHeuristic :: !HeuristicChoice
+  , cfgWeight :: !Double
+  -- ^ Weight on @h@ in weighted A*.
+  , cfgGreedy :: !Bool
+  -- ^ Ignore @g@ entirely.
+  , cfgMaxGenerated :: !(Maybe Int)
   }
 
 defaultSolveConfig :: SolveConfig
@@ -34,6 +43,10 @@ defaultSolveConfig =
     , cfgTimeout = Nothing
     , cfgCount = 1
     , cfgTrace = Nothing
+    , cfgHeuristic = Additive
+    , cfgWeight = 2
+    , cfgGreedy = False
+    , cfgMaxGenerated = Nothing
     }
 
 data Outcome = Solved | Exhausted | LimitHit
@@ -47,9 +60,19 @@ data Result = Result
   }
 
 events :: SolveConfig -> Problem -> [SearchEvent]
-events cfg p = search env defaultSearchConfig (initialPlan p)
+events cfg p = search env searchCfg (initialPlan p)
   where
-    env = mkEnv (cfgMode cfg) p
+    r = reachability (problemInit p) (groundActions p)
+    env = mkEnvWith (cfgMode cfg) p (reachableActions r)
+    searchCfg =
+      defaultSearchConfig
+        { scWeight = cfgWeight cfg
+        , scGreedy = cfgGreedy cfg
+        , scHeuristic = heuristic (cfgHeuristic cfg) r env
+        , scCost = case cfgHeuristic cfg of
+            Blind -> const
+            _ -> scCost defaultSearchConfig
+        }
 
 -- | Solve without time-outs or tracing.
 solvePure :: SolveConfig -> Problem -> Result
