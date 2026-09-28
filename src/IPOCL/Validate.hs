@@ -6,6 +6,7 @@ module IPOCL.Validate
 
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
+import Data.Maybe (isJust)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -56,7 +57,7 @@ validatePlan mode prob plan =
       , stepId t `notElem` [linkFrom l, linkTo l]
       , possiblyBefore o (linkFrom l) (stepId t)
       , possiblyBefore o (stepId t) (linkTo l)
-      , any (\e -> unifyLiterals b e (negateLit (linkCond l)) /= Nothing) (stepEff t)
+      , any (\e -> isJust (unifyLiterals b e (negateLit (linkCond l)))) (stepEff t)
       ]
 
     frameViolations = concatMap frameProblems (IM.elems (planFrames plan))

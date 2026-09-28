@@ -79,7 +79,7 @@ commandP :: Parser Command
 commandP =
   hsubparser
     ( command "solve" (info (SolveFiles <$> strArgument (metavar "DOMAIN") <*> strArgument (metavar "PROBLEM") <*> solveOpts) (progDesc "Solve a problem read from domain and problem files"))
-        <> command "builtin" (info (Builtin <$> strArgument (metavar "NAME" <> help (builtinHelp)) <*> solveOpts) (progDesc "Solve a built-in problem"))
+        <> command "builtin" (info (Builtin <$> strArgument (metavar "NAME" <> help builtinHelp) <*> solveOpts) (progDesc "Solve a built-in problem"))
     )
   where
     builtinHelp = "One of: " <> T.unpack (T.intercalate ", " (map fst builtins))
@@ -103,7 +103,7 @@ run p opts = do
   let cfg =
         defaultSolveConfig
           { cfgMode = optMode opts
-          , cfgMaxExpanded = maybe (cfgMaxExpanded defaultSolveConfig) Just (optMaxNodes opts)
+          , cfgMaxExpanded = optMaxNodes opts <|> cfgMaxExpanded defaultSolveConfig
           , cfgTimeout = optTimeout opts
           , cfgCount = optCount opts
           , cfgHeuristic = optHeuristic opts

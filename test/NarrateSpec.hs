@@ -2,8 +2,8 @@ module NarrateSpec (spec) where
 
 import Data.Char (isAlphaNum)
 import Data.IntMap.Strict qualified as IM
-import Data.List (findIndex)
-import Data.Maybe (mapMaybe)
+import Data.List (elemIndex)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -24,7 +24,7 @@ withoutTemplates p =
     d = problemDomain p
 
 lineIndex :: Text -> [Text] -> Maybe Int
-lineIndex needle = findIndex (== needle)
+lineIndex = elemIndex
 
 spec :: Spec
 spec = do
@@ -32,7 +32,7 @@ spec = do
     it "states each Character's intention before the Steps taken for it" $ do
       plan <- firstStory IPOCL bribeProblem
       let ls = T.lines (narrate bribeProblem plan)
-          at n = maybe (error ("missing line: " <> T.unpack n)) id (lineIndex n ls)
+          at n = fromMaybe (error ("missing line: " <> T.unpack n)) (lineIndex n ls)
       at "villain wants villain controls president." `shouldSatisfy` (< at "villain coerces hero.")
       at "hero wants villain has money." `shouldSatisfy` (< at "hero gives money to villain.")
     it "matches the Bribe golden narration" $ do
@@ -96,7 +96,7 @@ dotProblems dot =
     declared = mapMaybe nodeDecl ls
     nodeDecl l =
       let (ident, rest) = T.span isIdent l
-       in if not (T.null ident) && " [" `T.isPrefixOf` rest && not (ident `elem` ["node", "edge", "graph"])
+       in if not (T.null ident) && " [" `T.isPrefixOf` rest && ident `notElem` ["node", "edge", "graph"]
             then Just ident
             else Nothing
     isIdent c = isAlphaNum c || c == '_'

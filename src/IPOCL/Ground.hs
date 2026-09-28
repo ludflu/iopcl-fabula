@@ -12,7 +12,7 @@ module IPOCL.Ground
 
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -54,7 +54,7 @@ groundSchema statics initIx initSet s = mapMaybe build (foldl' step [Map.empty] 
   where
     step substs c = [s' | sub <- substs, fact <- Map.findWithDefault [] (atomPredicate c) initIx, Just s' <- [match sub (atomArgs c) (atomArgs fact)]]
     build sub = do
-      let f v = maybe (TVar v) id (Map.lookup v sub)
+      let f v = fromMaybe (TVar v) (Map.lookup v sub)
           pres = [mapLiteralVars f l | PLit l <- schemaPrecondition s]
           neqs = [(mapTermVars f a, mapTermVars f b) | PNeq a b <- schemaPrecondition s]
       actors <- traverse (\v -> case f v of TSym sym -> Just sym; _ -> Nothing) (schemaActors s)
@@ -64,7 +64,7 @@ groundSchema statics initIx initSet s = mapMaybe build (foldl' step [Map.empty] 
         GroundAction
           { gaIndex = 0
           , gaSchema = s
-          , gaArgs = map (f) (schemaParams s)
+          , gaArgs = map f (schemaParams s)
           , gaActors = actors
           , gaHappening = schemaHappening s
           , gaPre = pres

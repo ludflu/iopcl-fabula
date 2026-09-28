@@ -11,6 +11,7 @@ module IPOCL.Dot
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
 import Data.List (find)
+import Data.Maybe (isNothing)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -26,7 +27,7 @@ planToDot p plan =
     ["digraph " <> quote (problemName p) <> " {"]
       ++ map ("  " <>) header
       ++ concatMap cluster frames
-      ++ map ("  " <>) (map nodeLine unclustered)
+      ++ map (("  " <>) . nodeLine) unclustered
       ++ map ("  " <>) (causalEdges ++ threatEdges ++ motivationEdges)
       ++ ["}"]
   where
@@ -41,7 +42,7 @@ planToDot p plan =
     -- A node can be drawn in only one cluster: the lowest-numbered Frame
     -- whose Interval contains it.
     home sid = frameId <$> find (IS.member sid . frameInterval) frames
-    unclustered = [s | s <- steps, home (stepId s) == Nothing]
+    unclustered = [s | s <- steps, isNothing (home (stepId s))]
     cluster f =
       ["  subgraph cluster_" <> showT (frameId f) <> " {", "    label=" <> quote (frameLabel f) <> ";", "    style=rounded;"]
         ++ ["    " <> nodeLine s | s <- steps, home (stepId s) == Just (frameId f)]

@@ -11,6 +11,7 @@ import Control.Exception qualified as E
 import Control.Monad (void, when)
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.List (find)
+import Data.Either (lefts)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -166,7 +167,7 @@ domainFile = between sc eof . parens $ do
     ( Domain
         { domainName = n
         , domainSchemas = [fst a | Right a <- sections]
-        , domainPredicateTexts = concat [pts | Left pts <- sections]
+        , domainPredicateTexts = concat (lefts sections)
         }
     , [(schemaName s, sp) | Right (s, sp) <- sections]
     )

@@ -15,6 +15,7 @@ import Control.Monad (foldM)
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
 import Data.List (nub, sortOn)
+import Data.Maybe (isJust, isNothing)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
@@ -66,7 +67,7 @@ flaws :: Env -> Plan -> [Flaw]
 flaws _ plan =
   causalThreats plan
     ++ intentionalThreats plan
-    ++ [OpenMotivation (frameId f) | f <- IM.elems (planFrames plan), frameMotivator f == Nothing]
+    ++ [OpenMotivation (frameId f) | f <- IM.elems (planFrames plan), isNothing (frameMotivator f)]
     ++ [OpenCondition s l | (s, l) <- planOpenConds plan]
     ++ [IntentFlaw s c | (s, c) <- planPendingIntent plan]
 
@@ -157,7 +158,7 @@ causalThreats plan =
   , stepId t /= linkTo l
   , possiblyBefore o (linkFrom l) (stepId t)
   , possiblyBefore o (stepId t) (linkTo l)
-  , any (\e -> litKey e == litKey clobber && unifyLiterals b e clobber /= Nothing) (stepEff t)
+  , any (\e -> litKey e == litKey clobber && isJust (unifyLiterals b e clobber)) (stepEff t)
   ]
   where
     o = planOrder plan
@@ -183,7 +184,7 @@ resolveCausalThreat env plan t l =
       | Just step <- [IM.lookup t (planSteps plan)]
       , e <- map (resolveLiteral b) (stepEff step)
       , litPositive e == litPositive cond
-      , unifyLiterals b e cond /= Nothing
+      , isJust (unifyLiterals b e cond)
       , e /= cond
       , (x, y) <- zip (atomArgs (litAtom e)) (atomArgs (litAtom cond))
       , x /= y
@@ -215,7 +216,7 @@ openMotivation env plan fid = case IM.lookup fid (planFrames plan) of
   Just f ->
     let members = IS.toList (frameInterval f)
         motivate (Establisher pl m _) = do
-          o <- foldM (\acc s -> addOrder m s acc) (planOrder pl) members
+          o <- foldM (flip (addOrder m)) (planOrder pl) members
           Just pl {planOrder = o, planFrames = IM.insert fid f {frameMotivator = Just m} (planFrames pl)}
      in [ Child plan' (establishReason plan' est (frameIntention f) <> note)
         | est <- establishers env plan members (frameIntention f)
@@ -348,12 +349,12 @@ establishers env plan later p = existing ++ closedWorld ++ new
       [ Establisher plan initStepId False
       | not (litPositive p)
       , let a = resolveAtom b (litAtom p)
-      , not (any (\i -> unifyAtoms b i a /= Nothing) (Set.toList (envInit env)))
+      , not (any (\i -> isJust (unifyAtoms b i a)) (Set.toList (envInit env)))
       ]
     new =
       [ est
-      | (g, e) <- Map.findWithDefault [] (litPositive p, atomPredicate (litAtom p)) (envEffectIndex env)
-      , let k = planNextStep plan
+      | let k = planNextStep plan
+      , (g, e) <- Map.findWithDefault [] (litPositive p, atomPredicate (litAtom p)) (envEffectIndex env)
       , Just b' <- [unifyLiterals b (instantiateLiteral k e) p]
       , Just est <- [addStep g k plan {planBindings = b'}]
       ]

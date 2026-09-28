@@ -121,7 +121,7 @@ storySignature plan =
 
 -- | Keep the items whose key has not been seen, in order, and extend the seen set.
 dedupeBy :: Ord k => (a -> k) -> Set k -> [a] -> ([a], Set k)
-dedupeBy key seen0 = go seen0
+dedupeBy key = go
   where
     go seen = \case
       [] -> ([], seen)

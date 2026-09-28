@@ -31,7 +31,7 @@ spec = do
   it "keeps every accepted ordering" $
     property $ \es ->
       let (o, accepted) = applyAll (smallPairs es)
-       in all (\(a, b) -> before o a b) accepted
+       in all (uncurry (before o)) accepted
   it "places the bounds before and after everything" $ do
     let o = boundedOrder 0 1
     (before o 0 7, before o 7 1, before o 0 1, before o 1 0, before o 7 0) `shouldBe` (True, True, True, False, False)

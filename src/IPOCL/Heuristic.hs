@@ -13,7 +13,7 @@ module IPOCL.Heuristic
 import Data.IntMap.Strict qualified as IM
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -104,7 +104,7 @@ data HeuristicChoice = Additive | Paper | Blind
 heuristic :: HeuristicChoice -> Reachability -> Env -> Plan -> Maybe Int
 heuristic = \case
   Additive -> additiveHeuristic
-  Paper -> \_ -> paperHeuristic
+  Paper -> const paperHeuristic
   Blind -> \_ _ _ -> Just 0
 
 -- | Sum of reachability costs of what the plan still needs; 'Nothing' when
@@ -117,7 +117,7 @@ additiveHeuristic r env plan = do
   Just (sum opens + sum motivations + sum orphanCosts + length (planPendingIntent plan) + length threats)
   where
     b = planBindings plan
-    unmotivated = [f | f <- IM.elems (planFrames plan), frameMotivator f == Nothing]
+    unmotivated = [f | f <- IM.elems (planFrames plan), isNothing (frameMotivator f)]
     threats = filter isThreat (flaws env plan)
     -- An Orphan with a pending intent flaw for one of its Actor's Frames is one
     -- decision from joining; any other still needs a Frame it has not got.

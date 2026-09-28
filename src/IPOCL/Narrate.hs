@@ -7,6 +7,7 @@ module IPOCL.Narrate
 
 import Data.IntMap.Strict qualified as IM
 import Data.List (find)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import IPOCL.Bindings
@@ -69,4 +70,4 @@ fillTemplate env = T.concat . map part
   where
     part = \case
       TText t -> t
-      TParam n -> maybe ("?" <> n) id (lookup n env)
+      TParam n -> fromMaybe ("?" <> n) (lookup n env)
