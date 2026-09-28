@@ -77,11 +77,11 @@ spec = do
   describe "parseProblem" $ do
     it "rejects a problem for a different domain" $
       parseProblem tinyDomain "p" "(define (problem p) (:domain tower))" `shouldFailWith` "tiny"
-    it "defaults preferences to soft with weight 1000" $ do
+    it "defaults preferences to soft with weight 10" $ do
       let p = parseProblem tinyDomain "p" "(define (problem p) (:domain tiny) (:agents hero) (:preferences (max-frames hero 1) (forbid-goal hero (not (awake hero)) :hard) (no-repeat-steps :weight 5)))"
       problemPreferences <$> p
         `shouldBe` Right
-          [ Preference (MaxFrames (Symbol "hero") 1) (Soft 1000)
+          [ Preference (MaxFrames (Symbol "hero") 1) (Soft 10)
           , Preference (ForbidGoal (Symbol "hero") (nlit "awake" ["hero"])) Hard
           , Preference NoRepeatSteps (Soft 5)
           ]

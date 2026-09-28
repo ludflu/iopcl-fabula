@@ -24,6 +24,7 @@ import IPOCL.Bindings
 import IPOCL.Ground
 import IPOCL.Order
 import IPOCL.Plan
+import IPOCL.Preferences
 import IPOCL.Pretty
 import IPOCL.Syntax
 
@@ -48,7 +49,7 @@ mkEnvWith mode p gas =
     , envActions = gas
     , envEffectIndex = Map.fromListWith (flip (++)) [((litPositive e, atomPredicate (litAtom e)), [(g, e)]) | g <- gas, e <- gaEff g]
     , envInit = problemInit p
-    , envPrune = const False
+    , envPrune = hardViolated (problemPreferences p)
     }
 
 data Child = Child {childPlan :: !Plan, childReason :: !Text}

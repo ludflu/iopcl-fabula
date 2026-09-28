@@ -46,6 +46,7 @@ module IPOCL.Syntax
   ) where
 
 import Data.List (find)
+import Data.String (IsString (..))
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -53,6 +54,9 @@ import Data.Text qualified as T
 
 newtype Symbol = Symbol {symbolText :: Text}
   deriving (Eq, Ord, Show)
+
+instance IsString Symbol where
+  fromString = Symbol . T.pack
 
 -- | A variable. Scope 0 is the schema's own scope; plan Steps rename their
 -- variables into the scope of their StepId so Steps never share variables.

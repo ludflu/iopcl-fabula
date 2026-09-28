@@ -259,4 +259,4 @@ preferenceBody = Preference <$> rule <*> strength
     strength =
       (Hard <$ keyword ":hard")
         <|> (Soft <$> (keyword ":weight" *> integer))
-        <|> pure (Soft 1000)
+        <|> pure (Soft 10)

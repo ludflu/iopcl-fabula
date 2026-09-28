@@ -15,6 +15,7 @@ import GHC.Clock (getMonotonicTime)
 import IPOCL.Ground
 import IPOCL.Heuristic
 import IPOCL.Plan
+import IPOCL.Preferences (softPenalty)
 import IPOCL.Refine
 import IPOCL.Search
 import IPOCL.Syntax
@@ -68,7 +69,7 @@ events cfg p = search env searchCfg (initialPlan p)
       defaultSearchConfig
         { scWeight = cfgWeight cfg
         , scGreedy = cfgGreedy cfg
-        , scHeuristic = heuristic (cfgHeuristic cfg) r env
+        , scHeuristic = \plan -> (+ softPenalty (problemPreferences p) plan) <$> heuristic (cfgHeuristic cfg) r env plan
         , scCost = case cfgHeuristic cfg of
             Blind -> const
             _ -> scCost defaultSearchConfig

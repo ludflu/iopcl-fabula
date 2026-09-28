@@ -38,6 +38,7 @@ library
         IPOCL.Validate
         IPOCL.Linearize
         IPOCL.Parser
+        IPOCL.Preferences
         IPOCL.Printer
         IPOCL.Domains.Tiny
         IPOCL.Domains.Tower
@@ -79,6 +80,7 @@ test-suite spec
         JointSpec
         TraceSpec
         HeuristicSpec
+        PreferenceSpec
         SmallDomains
     build-depends:
         base,

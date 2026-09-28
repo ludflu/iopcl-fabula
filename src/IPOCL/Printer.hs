@@ -64,7 +64,7 @@ printPreference (Preference rule strength) = sexp (ruleParts ++ strengthParts)
       NoRepeatSteps -> ["no-repeat-steps"]
     strengthParts = case strength of
       Hard -> [":hard"]
-      Soft 1000 -> []
+      Soft 10 -> []
       Soft w -> [":weight", showT w]
 
 printVar :: Var -> Text

@@ -319,7 +319,7 @@ motivation, orphan, and intent terms.
 
 ### 4.12 Author preferences (`IPOCL.Preference`)
 Preferences are declared in the problem file. Each one is either **hard**, meaning a child that violates it is pruned, or
-**soft**, meaning a penalty is added to `h`. The default is soft with weight 1000.
+**soft**, meaning a penalty is added to `h`. The default is soft with weight 10, about ten Steps of cost. Much larger weights make a soft preference behave like a hard one in practice, because every cheaper plan in the (infinite) plan space is explored first.
 
 ```lisp
 (:preferences

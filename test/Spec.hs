@@ -9,6 +9,7 @@ import TraceSpec qualified
 import OrderSpec qualified
 import ParserSpec qualified
 import PlannerSpec qualified
+import PreferenceSpec qualified
 import Test.Hspec
 import ValidateSpec qualified
 
@@ -23,4 +24,5 @@ main = hspec $ do
   describe "Joint actions and intentional threats" JointSpec.spec
   describe "Trace" TraceSpec.spec
   describe "Heuristic search" HeuristicSpec.spec
+  describe "Author preferences" PreferenceSpec.spec
   describe "Parser" ParserSpec.spec
