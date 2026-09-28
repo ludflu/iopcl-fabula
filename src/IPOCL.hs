@@ -39,7 +39,9 @@ data SolveConfig = SolveConfig
   , cfgSeed :: !Int
   -- ^ Breaks ties between equally promising plans.
   , cfgDedupe :: !Bool
-  -- ^ Drop plans already reached by another refinement order.
+  -- ^ Drop plans already reached by another refinement order. Off by default:
+  -- refining one chosen flaw per plan makes the search tree nearly
+  -- systematic, so duplicates are rare and hashing every child costs ~2x.
   }
 
 defaultSolveConfig :: SolveConfig
@@ -55,7 +57,7 @@ defaultSolveConfig =
     , cfgGreedy = False
     , cfgMaxGenerated = Nothing
     , cfgSeed = 0
-    , cfgDedupe = True
+    , cfgDedupe = False
     }
 
 data Outcome = Solved | Exhausted | LimitHit

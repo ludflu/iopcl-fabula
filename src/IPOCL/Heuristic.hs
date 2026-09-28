@@ -119,8 +119,10 @@ additiveHeuristic r env plan = do
     b = planBindings plan
     unmotivated = [f | f <- IM.elems (planFrames plan), frameMotivator f == Nothing]
     threats = filter isThreatFlaw (flaws env plan)
-    orphanCost (_, a)
-      | not (null (framesOf plan a)) = Just 1
+    -- An Orphan with a pending intent flaw for one of its Actor's Frames is one
+    -- decision from joining; any other still needs a Frame it has not got.
+    orphanCost (s, a)
+      | any (\(s', c) -> s' == s && fmap frameCharacter (IM.lookup c (planFrames plan)) == Just a) (planPendingIntent plan) = Just 1
       | otherwise = (2 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym a, TVar (Var "anything" (-1))]))
 
 -- | Orphans only exist when planning for intentionality.

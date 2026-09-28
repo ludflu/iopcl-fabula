@@ -150,16 +150,19 @@ causalThreats :: Plan -> [Flaw]
 causalThreats plan =
   [ CausalThreat (stepId t) l
   | l <- Set.toList (planLinks plan)
-  , t <- planStepList plan
+  , let clobber = negateLit (linkCond l)
+  , t <- Map.findWithDefault [] (litKey clobber) clobberers
   , stepId t /= linkFrom l
   , stepId t /= linkTo l
   , possiblyBefore o (linkFrom l) (stepId t)
   , possiblyBefore o (stepId t) (linkTo l)
-  , any (\e -> unifyLiterals b e (negateLit (linkCond l)) /= Nothing) (stepEff t)
+  , any (\e -> litKey e == litKey clobber && unifyLiterals b e clobber /= Nothing) (stepEff t)
   ]
   where
     o = planOrder plan
     b = planBindings plan
+    litKey l = (litPositive l, atomPredicate (litAtom l))
+    clobberers = Map.fromListWith (++) [(k, [t]) | t <- planStepList plan, k <- nub (map litKey (stepEff t))]
 
 resolveCausalThreat :: Env -> Plan -> StepId -> CausalLink -> [Child]
 resolveCausalThreat env plan t l =

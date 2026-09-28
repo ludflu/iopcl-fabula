@@ -33,7 +33,7 @@ data SolveOpts = SolveOpts
   , optWeight :: Double
   , optGreedy :: Bool
   , optSeed :: Int
-  , optNoDedupe :: Bool
+  , optDedupe :: Bool
   }
 
 builtins :: [(Text, Problem)]
@@ -57,7 +57,7 @@ solveOpts =
     <*> option auto (long "weight" <> metavar "W" <> value 2 <> help "Weight on the heuristic in weighted A* (default 2)")
     <*> switch (long "greedy" <> help "Greedy best-first: ignore the cost so far")
     <*> option auto (long "seed" <> metavar "N" <> value 0 <> help "Seed for breaking ties between equally good plans")
-    <*> switch (long "no-dedupe" <> help "Keep plans already reached by another refinement order")
+    <*> switch (long "dedupe" <> help "Drop plans already reached by another refinement order")
   where
     readMode = \case
       "ipocl" -> Right IPOCL
@@ -104,7 +104,7 @@ run p opts = do
           , cfgWeight = optWeight opts
           , cfgGreedy = optGreedy opts
           , cfgSeed = optSeed opts
-          , cfgDedupe = not (optNoDedupe opts)
+          , cfgDedupe = optDedupe opts
           }
   r <- case optTrace opts of
     Nothing -> solve cfg p

@@ -107,7 +107,7 @@ initialPlan p =
   Plan
     { planSteps = IM.fromList [(initStepId, initStep), (goalStepId, goalStep)]
     , planBindings = emptyBindings
-    , planOrder = maybe emptyOrder id (addOrder initStepId goalStepId emptyOrder)
+    , planOrder = boundedOrder initStepId goalStepId
     , planLinks = Set.empty
     , planFrames = IM.empty
     , planFrameOrder = Set.empty

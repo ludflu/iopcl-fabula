@@ -6,8 +6,11 @@ module IPOCL.Signature
   , StorySignature
   , storySignature
   , dedupeBy
+  , mix64
   ) where
 
+import Data.Bits (shiftR, xor)
+import Data.Char (ord)
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
 import Data.List (sort)
@@ -16,6 +19,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Word (Word64)
 import IPOCL.Bindings
 import IPOCL.Plan
 import IPOCL.Pretty
@@ -25,19 +29,11 @@ type Name = Text
 
 type FrameKey = (Name, Text, Name, Name, [Name])
 
-newtype PlanSignature
-  = PlanSignature
-      ( [Name]
-      , [(Name, Text, Name)]
-      , [(Name, Name)]
-      , [FrameKey]
-      , [(FrameKey, FrameKey)]
-      , [(Name, Text)]
-      , [(Name, FrameKey)]
-      , [(Name, FrameKey)]
-      , [(Text, Text)]
-      )
-  deriving (Eq, Ord)
+-- | A 128-bit digest of the canonical plan description. Keeping digests
+-- rather than descriptions keeps the seen set small; a collision, which would
+-- drop an unseen plan, is vanishingly unlikely at search scale.
+data PlanSignature = PlanSignature !Word64 !Word64
+  deriving (Eq, Ord, Show)
 
 -- | Everything that determines a plan's future refinements, with Step and
 -- Frame ids replaced by what they denote. A Step whose label is shared with
@@ -45,8 +41,23 @@ newtype PlanSignature
 -- Orderings are not listed: every ordering follows from a causal link, a
 -- threat ordering, Frame membership or a Frame ordering, which are.
 planSignature :: Plan -> PlanSignature
-planSignature plan =
-  PlanSignature
+planSignature plan = PlanSignature (digest 0xcbf29ce484222325 description) (digest 0x9e3779b97f4a7c15 description)
+  where
+    description = planDescription plan
+
+planDescription ::
+  Plan ->
+  ( [Name]
+  , [(Name, Text, Name)]
+  , [(Name, Name)]
+  , [FrameKey]
+  , [(FrameKey, FrameKey)]
+  , [(Name, Text)]
+  , [(Name, FrameKey)]
+  , [(Name, FrameKey)]
+  , [(Text, Text)]
+  )
+planDescription plan =
     ( sort (map (stepName . stepId) steps)
     , sort [(stepName f, literal c, stepName t) | CausalLink f c t <- Set.toList (planLinks plan)]
     , sort [(stepName x, stepName y) | (x, y) <- Set.toList (planThreatOrders plan)]
@@ -76,6 +87,28 @@ planSignature plan =
       )
     frameName i = maybe ("?", "?", "?", "?", []) frameKey (IM.lookup i (planFrames plan))
 
+-- | Seeded FNV-1a over the structure, finalised with 'mix64'.
+class Digest a where
+  digest :: Word64 -> a -> Word64
+
+instance Digest Text where
+  digest = T.foldl' (\h c -> (h `xor` fromIntegral (ord c)) * 0x100000001b3)
+
+instance (Digest a) => Digest [a] where
+  digest h xs = mix64 (foldl' (\acc x -> digest (acc * 31 + 0x1f) x) h xs `xor` fromIntegral (length xs))
+
+instance (Digest a, Digest b) => Digest (a, b) where
+  digest h (a, b) = digest (mix64 (digest h a)) b
+
+instance (Digest a, Digest b, Digest c) => Digest (a, b, c) where
+  digest h (a, b, c) = digest h (a, (b, c))
+
+instance (Digest a, Digest b, Digest c, Digest d, Digest e) => Digest (a, b, c, d, e) where
+  digest h (a, b, c, d, e) = digest h (a, (b, (c, (d, e))))
+
+instance (Digest a, Digest b, Digest c, Digest d, Digest e, Digest f, Digest g, Digest i, Digest j) => Digest (a, b, c, d, e, f, g, i, j) where
+  digest h (a, b, c, d, e, f, g, i, j) = digest h (a, (b, (c, (d, (e, (f, (g, (i, j))))))))
+
 -- | Stories count as different when their ground Steps or their
 -- (Character, Character goal) pairs differ.
 type StorySignature = ([Text], Set (Text, Text))
@@ -97,3 +130,10 @@ dedupeBy key seen0 = go seen0
         | otherwise -> let (kept, seen') = go (Set.insert k seen) xs in (x : kept, seen')
         where
           k = key x
+
+-- | SplitMix64 finaliser, used for seeded tie-breaking.
+mix64 :: Word64 -> Word64
+mix64 z0 =
+  let z1 = (z0 `xor` (z0 `shiftR` 30)) * 0xbf58476d1ce4e5b9
+      z2 = (z1 `xor` (z1 `shiftR` 27)) * 0x94d049bb133111eb
+   in z2 `xor` (z2 `shiftR` 31)

@@ -8,14 +8,13 @@ module IPOCL.Search
   , mix64
   ) where
 
-import Data.Bits (shiftR, xor)
+import Data.Bits (xor)
 import Data.IntMap.Strict qualified as IM
 import Data.Set qualified as Set
 import Data.Text (Text)
-import Data.Word (Word64)
 import IPOCL.Plan
 import IPOCL.Refine
-import IPOCL.Signature (PlanSignature, dedupeBy)
+import IPOCL.Signature (PlanSignature, dedupeBy, mix64)
 
 data SearchConfig = SearchConfig
   { scWeight :: !Double
@@ -93,10 +92,3 @@ search env cfg root = go (maybe Set.empty Set.singleton (key 0 0 root)) (IM.sing
     dedupe seen cs = case scSignature cfg of
       Nothing -> (cs, seen)
       Just sig -> dedupeBy (sig . childPlan) seen cs
-
--- | SplitMix64 finaliser, used for seeded tie-breaking.
-mix64 :: Word64 -> Word64
-mix64 z0 =
-  let z1 = (z0 `xor` (z0 `shiftR` 30)) * 0xbf58476d1ce4e5b9
-      z2 = (z1 `xor` (z1 `shiftR` 27)) * 0x94d049bb133111eb
-   in z2 `xor` (z2 `shiftR` 31)

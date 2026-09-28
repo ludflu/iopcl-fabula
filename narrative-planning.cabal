@@ -94,3 +94,15 @@ test-suite spec
         QuickCheck >=2.14 && <2.16
     build-tool-depends:
         narrative-planning:narrative-planning
+
+benchmark aladdin
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   bench
+    main-is:          Aladdin.hs
+    ghc-options:      -rtsopts
+    build-depends:
+        base,
+        containers,
+        text,
+        narrative-planning

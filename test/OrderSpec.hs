@@ -32,3 +32,8 @@ spec = do
     property $ \es ->
       let (o, accepted) = applyAll (smallPairs es)
        in all (\(a, b) -> before o a b) accepted
+  it "places the bounds before and after everything" $ do
+    let o = boundedOrder 0 1
+    (before o 0 7, before o 7 1, before o 0 1, before o 1 0, before o 7 0) `shouldBe` (True, True, True, False, False)
+    isNothing (addOrder 7 0 o) `shouldBe` True
+    fmap (\o' -> before o' 0 9) (addOrder 7 9 o) `shouldBe` Just True
