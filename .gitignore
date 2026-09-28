@@ -1,0 +1,4 @@
+dist-newstyle/
+.scratch/
+*.hi
+*.o
