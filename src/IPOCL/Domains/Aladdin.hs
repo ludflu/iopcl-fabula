@@ -1,5 +1,5 @@
 -- | The Aladdin evaluation domain of Appendix A.1.
-module IPOCL.Domains.Aladdin (aladdinDomain, aladdinProblem, aladdinInit) where
+module IPOCL.Domains.Aladdin (aladdinDomain, aladdinProblem, aladdinInit, aladdinPreferences) where
 
 import Data.Text (Text)
 import IPOCL.Syntax
@@ -244,9 +244,41 @@ aladdinInit =
 
 aladdinProblem :: Problem
 aladdinProblem =
-  problem
-    "aladdin-1"
-    aladdinDomain
-    ["aladdin", "jafar", "jasmine", "dragon", "genie"]
-    aladdinInit
-    [lit "married-to" ["jafar", "jasmine"], nlit "alive" ["genie"]]
+  ( problem
+      "aladdin-1"
+      aladdinDomain
+      ["aladdin", "jafar", "jasmine", "dragon", "genie"]
+      aladdinInit
+      [lit "married-to" ["jafar", "jasmine"], nlit "alive" ["genie"]]
+  )
+    { problemPreferences = aladdinPreferences
+    }
+
+-- | The paper's domain-dependent heuristic (Appendix A.1). Its 5000-point
+-- penalties dwarf everything else, so they become hard preferences. The
+-- paper's whitelist says "hero" for Aladdin and "king" for Jafar and repeats
+-- entries; those are normalised here. Its "marry needs two Frames" rule is
+-- already enforced by Joint actions.
+aladdinPreferences :: [Preference]
+aladdinPreferences =
+  map
+    (`Preference` Hard)
+    [ AllowGoals
+        "aladdin"
+        [ lit "has" ["jafar", "lamp"]
+        , nlit "alive" ["genie"]
+        , nlit "alive" ["dragon"]
+        , lit "has" ["aladdin", "lamp"]
+        , lit "married-to" ["aladdin", "jasmine"]
+        ]
+    , AllowGoals "jafar" [lit "married-to" ["jafar", "jasmine"]]
+    , AllowGoals "jasmine" [lit "married-to" ["jasmine", "jafar"]]
+    , AllowGoals
+        "genie"
+        [ lit "loves" ["jasmine", "jafar"]
+        , lit "loves" ["jafar", "jasmine"]
+        , lit "loves" ["aladdin", "jasmine"]
+        ]
+    , AllowGoals "dragon" []
+    , NoRepeatSteps
+    ]

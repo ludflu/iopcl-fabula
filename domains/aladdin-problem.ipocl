@@ -22,4 +22,14 @@
     (place castle) (place mountain)
     (thing lamp) (magic-lamp lamp)
     (has dragon lamp))
-  (:goal (and (married-to jafar jasmine) (not (alive genie)))))
+  (:goal (and (married-to jafar jasmine) (not (alive genie))))
+  ; The paper's domain-dependent heuristic (Appendix A.1), with its "hero"
+  ; and "king" typos read as aladdin and jafar and its duplicates removed.
+  (:preferences
+    (allow-goals aladdin (has jafar lamp) (not (alive genie)) (not (alive dragon))
+      (has aladdin lamp) (married-to aladdin jasmine) :hard)
+    (allow-goals jafar (married-to jafar jasmine) :hard)
+    (allow-goals jasmine (married-to jasmine jafar) :hard)
+    (allow-goals genie (loves jasmine jafar) (loves jafar jasmine) (loves aladdin jasmine) :hard)
+    (allow-goals dragon :hard)
+    (no-repeat-steps :hard)))

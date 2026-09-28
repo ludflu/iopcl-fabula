@@ -83,14 +83,26 @@ expand env plan = case flaws env plan of
     | envMode env == IPOCL && not (null (orphans plan)) -> DeadEnd Nothing
     | otherwise -> Solution
   f : _ | isThreat f -> result f (refine env plan f)
-  fs ->
-    let scored = [(length kids, i, fl, kids) | (i, fl) <- zip [0 :: Int ..] fs, let kids = refine env plan fl]
-     in case sortOn (\(k, i, _, _) -> (k, i)) scored of
-          (_, _, f, cs) : _ -> result f cs
-          [] -> Solution
+  fs -> case sortOn fst [((estimate fl, i), fl) | (i, fl) <- zip [0 :: Int ..] fs] of
+    (_, f) : _ -> result f (refine env plan f)
+    [] -> Solution
   where
     result f [] = DeadEnd (Just f)
     result f cs = Refined f cs
+    estimate = refinementEstimate env plan
+
+-- | An upper bound on a flaw's number of children, cheap enough to compute for
+-- every flaw. Any flaw with no children makes the plan a dead end, so ranking
+-- by the estimate and refining only the winner loses no solutions.
+refinementEstimate :: Env -> Plan -> Flaw -> Int
+refinementEstimate env plan = \case
+  OpenCondition s p -> length (establishers env plan [s] p)
+  OpenMotivation c -> case IM.lookup c (planFrames plan) of
+    Just f -> length (establishers env plan (IS.toList (frameInterval f)) (frameIntention f))
+    Nothing -> 0
+  IntentFlaw {} -> 2
+  CausalThreat {} -> 3
+  IntentionalThreat {} -> 2
 
 refine :: Env -> Plan -> Flaw -> [Child]
 refine env plan = \case
