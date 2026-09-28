@@ -6,6 +6,7 @@ module IPOCL.Refine
   , Child (..)
   , Expansion (..)
   , flaws
+  , isThreat
   , expand
   , refine
   ) where

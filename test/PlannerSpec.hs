@@ -39,7 +39,7 @@ spec = do
 
   describe "IPOCL mode" $ do
     it "finds no believable tower story when nothing can motivate the characters" $
-      resultOutcome (solveWith IPOCL towerProblem) `shouldBe` Exhausted
+      resultEnd (solveWith IPOCL towerProblem) `shouldBe` Exhausted
     it "motivates a Frame from an Intention in the initial state" $ do
       plan <- firstStory IPOCL tinyProblem
       frameSummary plan `shouldBe` [("hero", "awake(hero)", ["wake-up(hero)"], "init")]

@@ -57,19 +57,19 @@ spec = do
   describe "search" $ do
     it "reports statistics when a limit is hit" $ do
       let r = solvePure defaultSolveConfig {cfgMaxExpanded = Just 100} aladdinProblem
-      resultOutcome r `shouldBe` LimitHit
+      resultEnd r `shouldBe` LimitHit
       resultExpanded r `shouldBe` 100
     forM_ smallProblems $ \(name, m, p) ->
       it ("agrees with blind search about whether " <> name <> " (" <> show m <> ") has a story") $ do
         let informed = solvePure defaultSolveConfig {cfgMode = m} p
             blind = solvePure defaultSolveConfig {cfgMode = m, cfgHeuristic = Blind} p
-        resultOutcome informed `shouldBe` resultOutcome blind
+        resultEnd informed `shouldBe` resultEnd blind
         mapM_ (`shouldBeValidFor` (m, p)) (resultStories informed ++ resultStories blind)
   describe "Level A" $
     forM_ [("motivated tower", motivatedTowerProblem), ("bribe", bribeProblem), ("reduced Aladdin", marriageProblem)] $ \(name, p) ->
       it ("tells the " <> name <> " story in under 10 seconds") $ do
         start <- getMonotonicTime
         r <- solve defaultSolveConfig {cfgTimeout = Just 10} p
-        resultOutcome r `shouldBe` Solved
+        resultEnd r `shouldBe` Solved
         end <- getMonotonicTime
         (end - start) `shouldSatisfy` (< 10)

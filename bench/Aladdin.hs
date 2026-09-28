@@ -60,7 +60,7 @@ main = do
       T.putStrLn $
         what
           <> ": "
-          <> tshow (resultOutcome r)
+          <> tshow (resultEnd r)
           <> " in "
           <> T.pack (show (fromIntegral (round (t * 10) :: Int) / 10 :: Double))
           <> " s, expanded "

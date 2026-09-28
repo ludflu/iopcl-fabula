@@ -118,7 +118,7 @@ additiveHeuristic r env plan = do
   where
     b = planBindings plan
     unmotivated = [f | f <- IM.elems (planFrames plan), frameMotivator f == Nothing]
-    threats = filter isThreatFlaw (flaws env plan)
+    threats = filter isThreat (flaws env plan)
     -- An Orphan with a pending intent flaw for one of its Actor's Frames is one
     -- decision from joining; any other still needs a Frame it has not got.
     orphanCost (s, a)
@@ -128,12 +128,6 @@ additiveHeuristic r env plan = do
 -- | Orphans only exist when planning for intentionality.
 intentionalOrphans :: Env -> Plan -> [(StepId, Symbol)]
 intentionalOrphans env plan = if envMode env == IPOCL then orphans plan else []
-
-isThreatFlaw :: Flaw -> Bool
-isThreatFlaw = \case
-  CausalThreat {} -> True
-  IntentionalThreat {} -> True
-  _ -> False
 
 -- | The domain-independent heuristic of Appendix A.1.
 paperHeuristic :: Env -> Plan -> Maybe Int

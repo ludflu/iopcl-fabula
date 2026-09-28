@@ -59,15 +59,15 @@ spec = do
       ]
       $ \(name, rule) ->
         it ("keeps a solvable problem solvable under a soft " <> name <> " it must violate") $ do
-          resultOutcome (limited (withPrefs [hard rule] bribeProblem)) `shouldNotBe` Solved
-          resultOutcome (limited (withPrefs [soft rule] bribeProblem)) `shouldBe` Solved
+          resultEnd (limited (withPrefs [hard rule] bribeProblem)) `shouldNotBe` Solved
+          resultEnd (limited (withPrefs [soft rule] bribeProblem)) `shouldBe` Solved
     it "leaves Characters without an allow-goals entry unrestricted" $ do
       let p = withPrefs [hard (AllowGoals "hero" [lit "has" ["villain", "money"]])] bribeProblem
       story <- firstStory IPOCL p
       goals story `shouldContain` [("villain", "controls(villain, president)")]
     it "needs two Frames when one Character must change its mind" $ do
-      resultOutcome (limited (withPrefs [hard (MaxFrames "hero" 1)] sleepyProblem)) `shouldNotBe` Solved
-      resultOutcome (limited (withPrefs [hard (MaxFrames "hero" 2)] sleepyProblem)) `shouldBe` Solved
+      resultEnd (limited (withPrefs [hard (MaxFrames "hero" 1)] sleepyProblem)) `shouldNotBe` Solved
+      resultEnd (limited (withPrefs [hard (MaxFrames "hero" 2)] sleepyProblem)) `shouldBe` Solved
   describe "violations" $ do
     it "counts Frames whose goal is forbidden" $ do
       story <- firstStory IPOCL bribeProblem

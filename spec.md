@@ -284,9 +284,11 @@ The pipeline runs in the list/`Maybe` monad, so a `Nothing` at any stage drops t
 ### 4.9 Flaw selection (`IPOCL.FlawSelect`)
 Choosing which flaw to work on is not a backtracking point. The policy is fixed:
 1. Causal and intentional threats.
-2. Any flaw with 0 or 1 children (dead ends and forced moves), found by calling `refine` on a bounded sample.
-3. Otherwise, the flaw with the fewest children (least-cost flaw repair, LCFR). Ties go to open motivations, then open
-   conditions, then intent flaws. After that, the most recently added flaw wins (LIFO).
+2. Otherwise, the flaw with the fewest children (least-cost flaw repair, LCFR), ranked by a cheap upper bound: the number
+   of establishers for open conditions and motivations, and 2 for intent flaws. Only the winning flaw is refined. If it has
+   no children, the plan is a dead end whichever flaw is chosen, so no solutions are lost. Ties go to open motivations, then
+   open conditions, then intent flaws, in list order. (Refining every flaw to count its children exactly made each
+   expansion about 2× slower on Aladdin.)
 
 Intent flaws come last among ties because each has only two cheap children, and delaying them gives more of the plan a chance
 to be settled first.
@@ -294,9 +296,9 @@ to be settled first.
 ### 4.10 Search (`IPOCL.Search`)
 - **Weighted A\***: `f = g + w·h`, where `g` is the number of Steps plus the number of Frames and the default is `w = 2`.
   `--greedy` sets `f = h`.
-- **Duplicate detection**: each plan's canonical `Signature` (§4.13) is stored in a `HashSet`, and a child is dropped if its
-  signature has been seen. This matters because recomputing intent flaws and the Adopt/Reject choices can reach the same plan
-  by several paths.
+- **Duplicate detection** (`--dedupe`, off by default): a 128-bit digest of each plan's canonical signature is stored, and a
+  child is dropped if its digest has been seen. Because each plan refines exactly one chosen flaw, the search tree is nearly
+  systematic. On Aladdin, dedupe removed no plans in 20k expansions and doubled the cost per node (ticket 12).
 - **Seeded randomisation**: `--seed N`. Ties in `f` are broken by a per-node random key drawn from a `StdGen` that is split
   deterministically, so the same seed always gives the same stories.
 - **Multiple stories**: `--count N` keeps searching after the first solution and yields only solutions whose *story
@@ -309,8 +311,9 @@ to be settled first.
 `h(plan)` is an estimate of the remaining refinements. It is the sum of:
 - for each open condition `p`: `cost(p)`, the h_add cost from the relaxed reachability pass (§4.5). This is 0 if `p` holds in `I`.
 - for each open motivation `c`: `1 + cost(intends(char c, goal c))`;
-- for each Orphan: 2 (one intent flaw plus the Frame it needs). If the Actor has no Frames at all, add `1 + min cost of an
-  intends for that Actor`;
+- for each Orphan: 1 if an intent flaw pairing it with one of its Actor's Frames is pending; otherwise `2 + min cost of an
+  intends for that Actor`, because it still needs a Frame it has not got (ticket 13: this cut Aladdin from 1.83M to 203k
+  expansions);
 - for each intent flaw and threat: 1;
 - the soft penalties from author preferences (§4.12).
 

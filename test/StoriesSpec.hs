@@ -48,7 +48,7 @@ spec = do
     it "does not change whether small problems have a Story" $
       mapM_
         ( \p ->
-            resultOutcome (solvePure defaultSolveConfig {cfgDedupe = True} p)
-              `shouldBe` resultOutcome (solvePure defaultSolveConfig p)
+            resultEnd (solvePure defaultSolveConfig {cfgDedupe = True} p)
+              `shouldBe` resultEnd (solvePure defaultSolveConfig p)
         )
         [bribeProblem, marriageProblem, sleepyProblem, giftProblem]

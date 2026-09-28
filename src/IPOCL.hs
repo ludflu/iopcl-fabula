@@ -2,7 +2,7 @@
 module IPOCL
   ( SolveConfig (..)
   , defaultSolveConfig
-  , Outcome (..)
+  , SearchEnd (..)
   , Result (..)
   , solve
   , solvePure
@@ -60,11 +60,12 @@ defaultSolveConfig =
     , cfgDedupe = False
     }
 
-data Outcome = Solved | Exhausted | LimitHit
+-- | How a search stopped (not the Outcome of the Story).
+data SearchEnd = Solved | Exhausted | LimitHit
   deriving (Eq, Show)
 
 data Result = Result
-  { resultOutcome :: !Outcome
+  { resultEnd :: !SearchEnd
   , resultStories :: ![Plan]
   , resultExpanded :: !Int
   , resultGenerated :: !Int

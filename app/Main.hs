@@ -127,7 +127,7 @@ run p opts = do
       TIO.putStrLn "INVALID:"
       mapM_ (TIO.putStrLn . ("  " <>)) problems
   TIO.putStrLn
-    ( T.pack (show (resultOutcome r))
+    ( T.pack (show (resultEnd r))
         <> ": expanded "
         <> T.pack (show (resultExpanded r))
         <> ", generated "
