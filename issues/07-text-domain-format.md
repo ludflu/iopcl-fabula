@@ -12,14 +12,14 @@ Domain validation errors are reported with their location.
 
 **Blocked by:** 01 (Tracer bullet: POCL solves a one-action story from the CLI).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The Tower, Bribe, and Aladdin domains and problems exist as text files. Each parses into the same value as the built-in Haskell version.
-- [ ] Parsing, printing, and parsing again gives an identical value, as shown by a property test.
-- [ ] Validation rejects the following, each with a clear message:
+- [x] The Tower, Bribe, and Aladdin domains and problems exist as text files. Each parses into the same value as the built-in Haskell version.
+- [x] Parsing, printing, and parsing again gives an identical value, as shown by a property test.
+- [x] Validation rejects the following, each with a clear message:
   - `intends` in a precondition;
   - an effect of `¬intends`;
   - an effect that negates a static predicate;
   - an actor that is not a parameter;
   - an unknown Character in a preference.
-- [ ] `solve` works on the Tower files in POCL mode. It works in IPOCL mode as tickets 03–06 land.
+- [x] `solve` works on the Tower files in POCL mode. It works in IPOCL mode as tickets 03–06 land.

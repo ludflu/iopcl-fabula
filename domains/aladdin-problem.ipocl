@@ -1,0 +1,25 @@
+(define (problem aladdin-1)
+  (:domain aladdin)
+  (:agents aladdin jafar jasmine dragon genie)
+  (:init
+    ; Aladdin, the king's loyal knight
+    (character aladdin) (male aladdin) (knight aladdin)
+    (at aladdin castle) (alive aladdin) (single aladdin)
+    (loyal-to aladdin jafar)
+    ; Jafar, the king
+    (character jafar) (male jafar) (king jafar)
+    (at jafar castle) (alive jafar) (single jafar)
+    ; Jasmine
+    (character jasmine) (female jasmine)
+    (at jasmine castle) (alive jasmine) (single jasmine) (beautiful jasmine)
+    ; the dragon, which guards the lamp
+    (character dragon) (monster dragon) (dragon dragon)
+    (at dragon mountain) (alive dragon) (scary dragon)
+    ; the genie, confined in the lamp
+    (character genie) (monster genie) (genie genie)
+    (in genie lamp) (confined genie) (alive genie) (scary genie)
+    ; places and things
+    (place castle) (place mountain)
+    (thing lamp) (magic-lamp lamp)
+    (has dragon lamp))
+  (:goal (and (married-to jafar jasmine) (not (alive genie)))))

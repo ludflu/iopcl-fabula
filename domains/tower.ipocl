@@ -1,0 +1,18 @@
+; The king, knight and princess: the princess must end up locked in the
+; tower and the king dead.
+(define (domain tower)
+  (:action kill
+    :parameters (?killer ?victim)
+    :actors (?killer)
+    :constraints (and (character ?killer) (character ?victim))
+    :precondition (and (alive ?killer) (alive ?victim) (neq ?killer ?victim))
+    :effect (not (alive ?victim))
+    :text "?killer kills ?victim.")
+
+  (:action lock-in-tower
+    :parameters (?jailer ?prisoner)
+    :actors (?jailer)
+    :constraints (and (character ?jailer) (character ?prisoner))
+    :precondition (and (alive ?jailer) (alive ?prisoner) (not (locked ?prisoner)))
+    :effect (locked ?prisoner)
+    :text "?jailer locks ?prisoner in the tower."))

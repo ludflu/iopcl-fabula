@@ -1,0 +1,8 @@
+(define (problem motivated-tower-1)
+  (:domain motivated-tower)
+  (:agents king knight princess)
+  (:init
+    (character king) (character knight) (character princess)
+    (king king) (knight knight) (princess princess)
+    (alive king) (alive knight) (alive princess))
+  (:goal (and (locked princess) (not (alive king)))))

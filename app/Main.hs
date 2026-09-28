@@ -10,6 +10,7 @@ import IPOCL.Domains.Aladdin
 import IPOCL.Domains.Bribe
 import IPOCL.Domains.Tiny
 import IPOCL.Domains.Tower
+import IPOCL.Parser
 import IPOCL.Report
 import IPOCL.Syntax
 import IPOCL.Trace
@@ -18,7 +19,9 @@ import Options.Applicative
 import System.Exit (exitFailure)
 import System.IO (IOMode (WriteMode), stderr, withFile)
 
-data Command = Builtin Text SolveOpts
+data Command
+  = Builtin Text SolveOpts
+  | SolveFiles FilePath FilePath SolveOpts
 
 data SolveOpts = SolveOpts
   { optMode :: Mode
@@ -65,7 +68,8 @@ solveOpts =
 commandP :: Parser Command
 commandP =
   hsubparser
-    ( command "builtin" (info (Builtin <$> strArgument (metavar "NAME" <> help (builtinHelp)) <*> solveOpts) (progDesc "Solve a built-in problem"))
+    ( command "solve" (info (SolveFiles <$> strArgument (metavar "DOMAIN") <*> strArgument (metavar "PROBLEM") <*> solveOpts) (progDesc "Solve a problem read from domain and problem files"))
+        <> command "builtin" (info (Builtin <$> strArgument (metavar "NAME" <> help (builtinHelp)) <*> solveOpts) (progDesc "Solve a built-in problem"))
     )
   where
     builtinHelp = "One of: " <> T.unpack (T.intercalate ", " (map fst builtins))
@@ -77,6 +81,8 @@ main = do
     Builtin name opts -> case lookup name builtins of
       Nothing -> die' ("unknown built-in problem " <> name)
       Just p -> run p opts
+    SolveFiles domainFile problemFile opts ->
+      loadProblem domainFile problemFile >>= either die' (`run` opts)
 
 run :: Problem -> SolveOpts -> IO ()
 run p opts = do

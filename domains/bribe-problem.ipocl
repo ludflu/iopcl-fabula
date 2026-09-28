@@ -1,0 +1,13 @@
+(define (problem bribe-1)
+  (:domain bribe)
+  (:agents villain hero president)
+  (:init
+    (character villain)
+    (character hero)
+    (character president)
+    (official president)
+    (thing money)
+    (can-threaten villain hero)
+    (has hero money)
+    (intends villain (controls villain president)))
+  (:goal (corrupt president)))
