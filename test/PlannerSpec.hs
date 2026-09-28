@@ -2,6 +2,7 @@ module PlannerSpec (spec) where
 
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
+import FetchDomain
 import Helpers
 import IPOCL
 import IPOCL.Bindings
@@ -50,6 +51,11 @@ spec = do
         `shouldMatchList` [ ("king", "locked(princess)", ["lock-in-tower(king, princess)"], "disobey(princess, king)")
                           , ("knight", "¬alive(king)", ["kill(knight, king)"], "witness-cruelty(knight, king, princess)")
                           ]
+    it "passes a goal to another Character through a literal-valued parameter" $ do
+      plan <- firstStory IPOCL fetchProblem
+      plan `shouldBeValidFor` (IPOCL, fetchProblem)
+      frameSummary plan
+        `shouldContain` [("knight", "has(king, lamp)", ["give(knight, king, lamp)"], "order(king, knight, has(king, lamp))")]
     it "never places a Happening in an Interval" $ do
       plan <- firstStory IPOCL motivatedTowerProblem
       [s | s <- actionSteps plan, stepHappening s, any (IS.member (stepId s) . frameInterval) (IM.elems (planFrames plan))]

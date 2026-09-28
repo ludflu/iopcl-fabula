@@ -68,6 +68,7 @@ test-suite spec
         PlannerSpec
         ValidateSpec
         Helpers
+        FetchDomain
     build-depends:
         base,
         containers,
