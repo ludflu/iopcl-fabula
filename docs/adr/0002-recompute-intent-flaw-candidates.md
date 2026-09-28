@@ -1,0 +1,3 @@
+# Recompute intent-flaw candidates after every refinement
+
+The paper (Fig. 5) proposes intent flaws only during frame discovery for the newly added step and by spreading activation when a step is adopted. That misses candidates whose triggering structure appears later — e.g. a Frame becomes "in service of" another Character's Step only after its Motivating step is already in the plan. We instead recompute all candidates satisfying conditions 1 and 2 after every refinement, filtered by the set of already-proposed (Step, Frame) pairs so each pair is still decided exactly once. This deviates from the paper deliberately; do not "restore" the eager formulation without the equivalence tests.

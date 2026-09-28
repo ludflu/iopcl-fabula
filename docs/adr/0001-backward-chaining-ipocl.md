@@ -1,0 +1,3 @@
+# Backward-chaining IPOCL rather than a forward intentional planner
+
+We implement IPOCL's backward-chaining, partial-order refinement search even though the release target is a story generator that must solve Aladdin-sized problems in minutes, and forward state-space intentional planners (e.g. Glaive) are known to be much faster. We chose IPOCL because partial-order plans with explicit Frames, causal links, and Motivating steps are the structures narration and author tooling need, and because the paper gives a precise definition of believability we can validate against. Speed is recovered through grounding, reachability-based heuristics, duplicate detection, and author preferences; if the Level B target is still missed, this decision is the one to revisit.
