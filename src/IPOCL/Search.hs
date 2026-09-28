@@ -15,6 +15,7 @@ import Data.Text (Text)
 import Data.Word (Word64)
 import IPOCL.Plan
 import IPOCL.Refine
+import IPOCL.Signature (PlanSignature, dedupeBy)
 
 data SearchConfig = SearchConfig
   { scWeight :: !Double
@@ -24,7 +25,7 @@ data SearchConfig = SearchConfig
   -- ^ @g@: cost of the plan so far, given its depth in the search tree.
   , scHeuristic :: Plan -> Maybe Int
   -- ^ @h@: estimated remaining cost; 'Nothing' marks a plan as hopeless.
-  , scSignature :: Maybe (Plan -> String)
+  , scSignature :: Maybe (Plan -> PlanSignature)
   -- ^ When set, plans whose signature was already generated are dropped.
   }
 
@@ -91,12 +92,7 @@ search env cfg root = go (maybe Set.empty Set.singleton (key 0 0 root)) (IM.sing
                       : go frontier' nodes'' (next + length kids) seen'
     dedupe seen cs = case scSignature cfg of
       Nothing -> (cs, seen)
-      Just sig ->
-        let step (acc, s) c =
-              let k = sig (childPlan c)
-               in if Set.member k s then (acc, s) else (c : acc, Set.insert k s)
-            (kept, seen') = foldl' step ([], seen) cs
-         in (reverse kept, seen')
+      Just sig -> dedupeBy (sig . childPlan) seen cs
 
 -- | SplitMix64 finaliser, used for seeded tie-breaking.
 mix64 :: Word64 -> Word64

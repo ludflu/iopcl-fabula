@@ -11,6 +11,7 @@ module IPOCL
   ) where
 
 import Data.IORef
+import Data.Set qualified as Set
 import GHC.Clock (getMonotonicTime)
 import IPOCL.Ground
 import IPOCL.Heuristic
@@ -18,6 +19,7 @@ import IPOCL.Plan
 import IPOCL.Preferences (softPenalty)
 import IPOCL.Refine
 import IPOCL.Search
+import IPOCL.Signature
 import IPOCL.Syntax
 
 data SolveConfig = SolveConfig
@@ -34,6 +36,10 @@ data SolveConfig = SolveConfig
   , cfgGreedy :: !Bool
   -- ^ Ignore @g@ entirely.
   , cfgMaxGenerated :: !(Maybe Int)
+  , cfgSeed :: !Int
+  -- ^ Breaks ties between equally promising plans.
+  , cfgDedupe :: !Bool
+  -- ^ Drop plans already reached by another refinement order.
   }
 
 defaultSolveConfig :: SolveConfig
@@ -48,6 +54,8 @@ defaultSolveConfig =
     , cfgWeight = 2
     , cfgGreedy = False
     , cfgMaxGenerated = Nothing
+    , cfgSeed = 0
+    , cfgDedupe = True
     }
 
 data Outcome = Solved | Exhausted | LimitHit
@@ -60,9 +68,16 @@ data Result = Result
   , resultGenerated :: !Int
   }
 
+-- | The search stream, keeping only the first Story with each 'StorySignature'.
 events :: SolveConfig -> Problem -> [SearchEvent]
-events cfg p = search env searchCfg (initialPlan p)
+events cfg p = distinct Set.empty (search env searchCfg (initialPlan p))
   where
+    distinct seen = \case
+      [] -> []
+      ev@(FoundSolution _ plan) : rest
+        | Set.member (storySignature plan) seen -> distinct seen rest
+        | otherwise -> ev : distinct (Set.insert (storySignature plan) seen) rest
+      ev : rest -> ev : distinct seen rest
     r = reachability (problemInit p) (groundActions p)
     env = mkEnvWith (cfgMode cfg) p (reachableActions r)
     searchCfg =
@@ -70,6 +85,8 @@ events cfg p = search env searchCfg (initialPlan p)
         { scWeight = cfgWeight cfg
         , scGreedy = cfgGreedy cfg
         , scHeuristic = \plan -> (+ softPenalty (problemPreferences p) plan) <$> heuristic (cfgHeuristic cfg) r env plan
+        , scSeed = cfgSeed cfg
+        , scSignature = if cfgDedupe cfg then Just planSignature else Nothing
         , scCost = case cfgHeuristic cfg of
             Blind -> const
             _ -> scCost defaultSearchConfig

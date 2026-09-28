@@ -12,35 +12,6 @@ import IPOCL.Syntax
 import SmallDomains
 import Test.Hspec
 
--- | The bard can please the king by singing or with a gift, and intends both
--- that the king is happy and that the king is rich.
-giftProblem :: Problem
-giftProblem =
-  problem
-    "gift"
-    Domain
-      { domainName = "gift"
-      , domainSchemas =
-          [ (schema "sing" ["?who"])
-              { schemaActors = [Var "who" 0]
-              , schemaConstraints = [atom "character" ["?who"]]
-              , schemaEffect = [lit "happy" ["king"]]
-              }
-          , (schema "give-gold" ["?who"])
-              { schemaActors = [Var "who" 0]
-              , schemaConstraints = [atom "character" ["?who"]]
-              , schemaEffect = [lit "happy" ["king"], lit "rich" ["king"]]
-              }
-          ]
-      , domainPredicateTexts = []
-      }
-    ["bard"]
-    [ atom "character" ["bard"]
-    , litAtom (intends "bard" (Right (lit "happy" ["king"])))
-    , litAtom (intends "bard" (Right (lit "rich" ["king"])))
-    ]
-    [lit "happy" ["king"]]
-
 withPrefs :: [Preference] -> Problem -> Problem
 withPrefs prefs p = p {problemPreferences = prefs}
 
