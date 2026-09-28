@@ -70,6 +70,8 @@ test-suite spec
         Helpers
         FetchDomain
         IntentSpec
+        JointSpec
+        SmallDomains
     build-depends:
         base,
         containers,

@@ -61,6 +61,7 @@ data Expansion
 flaws :: Env -> Plan -> [Flaw]
 flaws _ plan =
   causalThreats plan
+    ++ intentionalThreats plan
     ++ [OpenMotivation (frameId f) | f <- IM.elems (planFrames plan), frameMotivator f == Nothing]
     ++ [OpenCondition s l | (s, l) <- planOpenConds plan]
     ++ [IntentFlaw s c | (s, c) <- planPendingIntent plan]
@@ -94,7 +95,38 @@ refine env plan = \case
   CausalThreat t l -> resolveCausalThreat env plan t l
   OpenMotivation c -> openMotivation env plan c
   IntentFlaw s c -> resolveIntentFlaw env plan s c
-  _ -> []
+  IntentionalThreat a b -> resolveIntentionalThreat env plan a b
+
+-- Intentional threats -------------------------------------------------------
+
+-- | Unordered Frames of one Character whose Character goals necessarily negate
+-- each other (Def. 9).
+intentionalThreats :: Plan -> [Flaw]
+intentionalThreats plan =
+  [ IntentionalThreat (frameId a) (frameId b)
+  | a <- fs
+  , b <- fs
+  , frameId a < frameId b
+  , frameCharacter a == frameCharacter b
+  , not (Set.member (frameId a, frameId b) (planFrameOrder plan))
+  , not (Set.member (frameId b, frameId a) (planFrameOrder plan))
+  , let ga = resolvedGoal plan a
+        gb = resolvedGoal plan b
+  , litPositive ga /= litPositive gb
+  , litAtom ga == litAtom gb
+  ]
+  where
+    fs = IM.elems (planFrames plan)
+
+-- | Order one Frame's Interval entirely before the other's, either way round.
+resolveIntentionalThreat :: Env -> Plan -> FrameId -> FrameId -> [Child]
+resolveIntentionalThreat env plan a b =
+  [Child p' ("frame " <> tshow x <> " before frame " <> tshow y) | (x, y) <- [(a, b), (b, a)], Just p' <- [orderFrames x y]]
+  where
+    members fid = maybe [] (IS.toList . frameInterval) (IM.lookup fid (planFrames plan))
+    orderFrames x y = do
+      o <- foldM (\acc (s, t) -> addOrder s t acc) (planOrder plan) [(s, t) | s <- members x, t <- members y]
+      keep env plan {planOrder = o, planFrameOrder = Set.insert (x, y) (planFrameOrder plan)}
 
 -- Causal threats ------------------------------------------------------------
 

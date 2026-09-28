@@ -256,8 +256,8 @@ Establishers for an open condition `p`:
   The resolvers are promotion, demotion, and separation (only when the codesignation is merely possible).
 - **Intentional threat**: two Frames of the same Character, not yet ordered, whose Character goals are necessarily complementary.
   There are two resolvers:
-  - record `(c1, c2)` in `frameOrder` and add `s1 < s2` for every member of `c1` and every member of `c2`, including the
-    Motivating steps;
+  - record `(c1, c2)` in `frameOrder` and add `s1 < s2` for every member of `c1` and every member of `c2`. Motivating steps
+    are not ordered, because a Frame motivated by the initial state could then never come second;
   - the same in the reverse direction.
 
   If the goals are only *possibly* complementary, the pair is re-checked after later bindings.

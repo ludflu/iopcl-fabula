@@ -3,6 +3,7 @@ module Main (main) where
 import BindingsSpec qualified
 import GroundSpec qualified
 import IntentSpec qualified
+import JointSpec qualified
 import OrderSpec qualified
 import PlannerSpec qualified
 import Test.Hspec
@@ -16,3 +17,4 @@ main = hspec $ do
   describe "Planner" PlannerSpec.spec
   describe "Validate" ValidateSpec.spec
   describe "Intent planning" IntentSpec.spec
+  describe "Joint actions and intentional threats" JointSpec.spec

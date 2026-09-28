@@ -30,7 +30,6 @@ spec = do
         effect = intendsOfTerm (term "aladdin") (TLit (pos (Atom "alive" [x])))
     isNothing (unifyLiterals emptyBindings effect want) `shouldBe` True
   it "refuses a binding that would make a non-codesignation equal" $ do
-    let Just b = addNeq emptyBindings x (term "genie")
-    isNothing (unify b x (term "genie")) `shouldBe` True
+    (addNeq emptyBindings x (term "genie") >>= \b -> unify b x (term "genie")) `shouldSatisfy` isNothing
   it "rejects cyclic bindings" $
     isNothing (unify emptyBindings x (TLit (pos (Atom "p" [x])))) `shouldBe` True
