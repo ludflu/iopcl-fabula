@@ -69,6 +69,7 @@ test-suite spec
         ValidateSpec
         Helpers
         FetchDomain
+        IntentSpec
     build-depends:
         base,
         containers,

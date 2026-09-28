@@ -12,7 +12,7 @@ module IPOCL.Refine
 import Control.Monad (foldM)
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
-import Data.List (sortOn)
+import Data.List (nub, sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
@@ -93,6 +93,7 @@ refine env plan = \case
   OpenCondition s p -> openCondition env plan s p
   CausalThreat t l -> resolveCausalThreat env plan t l
   OpenMotivation c -> openMotivation env plan c
+  IntentFlaw s c -> resolveIntentFlaw env plan s c
   _ -> []
 
 -- Causal threats ------------------------------------------------------------
@@ -180,8 +181,64 @@ afterEstablish env est pl =
   , Just pl'' <- [finalize env pl']
   ]
 
+-- | Bookkeeping after every refinement: propose new intent flaws, then prune.
 finalize :: Env -> Plan -> Maybe Plan
-finalize = keep
+finalize env pl
+  | envMode env == POCL = keep env pl
+  | otherwise =
+      let fresh = nub [c | c <- intentCandidates pl, not (Set.member c (planProposedIntent pl))]
+       in keep
+            env
+            pl
+              { planPendingIntent = fresh ++ planPendingIntent pl
+              , planProposedIntent = foldr Set.insert (planProposedIntent pl) fresh
+              }
+
+-- | Step-Frame pairs that could explain the Step (ADR-0002): the Step shares
+-- the Frame's Character and either (1) causally supports a member of the
+-- Interval, or (2) motivates another Frame whose final Step supports a member.
+intentCandidates :: Plan -> [(StepId, FrameId)]
+intentCandidates plan = cond1 ++ cond2
+  where
+    frames = IM.elems (planFrames plan)
+    links = Set.toList (planLinks plan)
+    eligible s c = case IM.lookup s (planSteps plan) of
+      Just st -> not (stepHappening st) && frameCharacter c `elem` stepActors st && not (IS.member s (frameInterval c))
+      Nothing -> False
+    serves s c = any (\l -> linkFrom l == s && IS.member (linkTo l) (frameInterval c)) links
+    cond1 = [(linkFrom l, frameId c) | l <- links, c <- frames, IS.member (linkTo l) (frameInterval c), eligible (linkFrom l) c]
+    cond2 =
+      [ (m, frameId c)
+      | ci <- frames
+      , Just m <- [frameMotivator ci]
+      , m /= initStepId
+      , Just fin <- [frameFinal ci]
+      , c <- frames
+      , frameId c /= frameId ci
+      , eligible m c
+      , serves fin c
+      ]
+
+-- Intent planning -------------------------------------------------------------
+
+-- | Either adopt the Step into the Frame's Interval or leave it out.
+resolveIntentFlaw :: Env -> Plan -> StepId -> FrameId -> [Child]
+resolveIntentFlaw env plan0 s c =
+  [Child p' ("adoption of step " <> tshow s <> " by frame " <> tshow c) | Just p' <- [adopt]]
+    ++ [Child p' ("step " <> tshow s <> " stays out of frame " <> tshow c) | Just p' <- [keep env plan]]
+  where
+    plan = plan0 {planPendingIntent = filter (/= (s, c)) (planPendingIntent plan0)}
+    adopt = do
+      f <- IM.lookup c (planFrames plan)
+      let members g = maybe [] (IS.toList . frameInterval) (IM.lookup g (planFrames plan))
+          frameOrder = Set.toList (planFrameOrder plan)
+          orderings =
+            [(m, s) | Just m <- [frameMotivator f]]
+              ++ [(s, fin) | Just fin <- [frameFinal f], fin /= s]
+              ++ [(s, x) | (a, later) <- frameOrder, a == c, x <- members later]
+              ++ [(x, s) | (earlier, b) <- frameOrder, b == c, x <- members earlier]
+      o <- foldM (\acc (x, y) -> addOrder x y acc) (planOrder plan) orderings
+      finalize env plan {planOrder = o, planFrames = IM.insert c f {frameInterval = IS.insert s (frameInterval f)} (planFrames plan)}
 
 keep :: Env -> Plan -> Maybe Plan
 keep env pl = if envPrune env pl then Nothing else Just pl
