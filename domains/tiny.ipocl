@@ -1,0 +1,9 @@
+; The smallest useful problem: one action achieves the outcome.
+(define (domain tiny)
+  (:action wake-up
+    :parameters (?who)
+    :actors (?who)
+    :constraints (character ?who)
+    :precondition (asleep ?who)
+    :effect (and (not (asleep ?who)) (awake ?who))
+    :text "?who wakes up."))

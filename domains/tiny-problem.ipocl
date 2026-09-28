@@ -1,0 +1,8 @@
+(define (problem tiny-1)
+  (:domain tiny)
+  (:agents hero)
+  (:init
+    (character hero)
+    (asleep hero)
+    (intends hero (awake hero)))
+  (:goal (awake hero)))

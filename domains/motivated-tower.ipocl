@@ -1,0 +1,33 @@
+; Tower plus happenings that give the king and the knight their reasons.
+(define (domain motivated-tower)
+  (:action kill
+    :parameters (?killer ?victim)
+    :actors (?killer)
+    :constraints (and (character ?killer) (character ?victim))
+    :precondition (and (alive ?killer) (alive ?victim) (neq ?killer ?victim))
+    :effect (not (alive ?victim))
+    :text "?killer kills ?victim.")
+
+  (:action lock-in-tower
+    :parameters (?jailer ?prisoner)
+    :actors (?jailer)
+    :constraints (and (character ?jailer) (character ?prisoner))
+    :precondition (and (alive ?jailer) (alive ?prisoner) (not (locked ?prisoner)))
+    :effect (locked ?prisoner)
+    :text "?jailer locks ?prisoner in the tower.")
+
+  (:action disobey
+    :parameters (?princess ?king)
+    :happening t
+    :constraints (and (princess ?princess) (king ?king))
+    :precondition (and (alive ?princess) (alive ?king))
+    :effect (and (angry ?king ?princess) (intends ?king (locked ?princess)))
+    :text "?princess defies ?king.")
+
+  (:action witness-cruelty
+    :parameters (?knight ?king ?princess)
+    :happening t
+    :constraints (and (knight ?knight) (king ?king) (princess ?princess))
+    :precondition (and (locked ?princess) (alive ?knight))
+    :effect (intends ?knight (not (alive ?king)))
+    :text "?knight sees that ?king has imprisoned ?princess."))

@@ -1,0 +1,32 @@
+; The arch-villain who bribes the President.
+(define (domain bribe)
+  (:predicate-text
+    (has ?a ?b) "?a has ?b"
+    (controls ?a ?b) "?a controls ?b"
+    (corrupt ?a) "?a is corrupt")
+
+  (:action bribe
+    :parameters (?briber ?official ?thing)
+    :actors (?briber)
+    :constraints (and (character ?briber) (official ?official) (thing ?thing))
+    :precondition (and (has ?briber ?thing) (neq ?briber ?official))
+    :effect (and (corrupt ?official)
+                 (controls ?briber ?official)
+                 (has ?official ?thing)
+                 (not (has ?briber ?thing)))
+    :text "?briber bribes ?official with ?thing.")
+
+  (:action give
+    :parameters (?giver ?givee ?thing)
+    :actors (?giver)
+    :constraints (and (character ?giver) (character ?givee) (thing ?thing))
+    :precondition (and (has ?giver ?thing) (neq ?giver ?givee))
+    :effect (and (not (has ?giver ?thing)) (has ?givee ?thing))
+    :text "?giver gives ?thing to ?givee.")
+
+  (:action coerce
+    :parameters (?coercer ?victim ?objective)
+    :actors (?coercer)
+    :constraints (can-threaten ?coercer ?victim)
+    :effect (intends ?victim ?objective)
+    :text "?coercer coerces ?victim."))

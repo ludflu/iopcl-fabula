@@ -35,6 +35,8 @@ library
         IPOCL.Search
         IPOCL.Validate
         IPOCL.Linearize
+        IPOCL.Parser
+        IPOCL.Printer
         IPOCL.Domains.Tiny
         IPOCL.Domains.Tower
         IPOCL.Domains.Bribe
@@ -42,7 +44,8 @@ library
     build-depends:
         base ^>=4.20.2.0,
         containers >=0.6 && <0.8,
-        text >=2.0 && <2.2
+        text >=2.0 && <2.2,
+        megaparsec >=9.5 && <9.8
 
 executable narrative-planning
     import:           warnings
@@ -67,6 +70,7 @@ test-suite spec
         GroundSpec
         PlannerSpec
         ValidateSpec
+        ParserSpec
         Helpers
     build-depends:
         base,
@@ -74,4 +78,7 @@ test-suite spec
         text,
         narrative-planning,
         hspec >=2.10 && <2.12,
+        process,
         QuickCheck >=2.14 && <2.16
+    build-tool-depends:
+        narrative-planning:narrative-planning
