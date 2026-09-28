@@ -1,0 +1,29 @@
+plan 0
+  reason: initial plan
+  now working on: open condition awake(hero) on step 1
+  children: 3
+plan 1 (child of plan 0)
+  reason: created new step 2: wake-up(hero) to solve awake(hero)
+  now working on: open condition asleep(hero) on step 2
+  children: 1
+plan 4 (child of plan 1)
+  reason: reused step 0: init to solve asleep(hero)
+  dead end: orphans remain: wake-up(hero) for hero
+  children: 0
+plan 3 (child of plan 0)
+  reason: created new step 2: wake-up(hero) to solve awake(hero); hero intends awake(hero)
+  now working on: open motivation intends(hero, awake(hero)) on frame 0
+  children: 1
+plan 5 (child of plan 3)
+  reason: reused step 0: init to solve intends(hero, awake(hero))
+  now working on: open condition asleep(hero) on step 2
+  children: 1
+plan 6 (child of plan 5)
+  reason: reused step 0: init to solve asleep(hero)
+  complete
+  children: 0
+solution found: plan 6
+plan 2 (child of plan 0)
+  reason: created new step 2: wake-up(hero) to solve awake(hero); hero intends ¬asleep(hero)
+  dead end: no way to repair open motivation intends(hero, ¬asleep(hero)) on frame 0
+  children: 0

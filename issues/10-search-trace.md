@@ -4,9 +4,9 @@
 
 **Blocked by:** 01 (Tracer bullet: POCL solves a one-action story from the CLI).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A trace of the tiny problem shows the complete path from the initial plan to the solution.
-- [ ] Every refinement kind that exists at the time of implementation produces a human-readable reason.
-- [ ] A golden test covers a short trace excerpt.
-- [ ] A run without `--trace` performs no trace formatting work, as shown by benchmark or inspection.
+- [x] A trace of the tiny problem shows the complete path from the initial plan to the solution.
+- [x] Every refinement kind that exists at the time of implementation produces a human-readable reason.
+- [x] A golden test covers a short trace excerpt.
+- [x] A run without `--trace` performs no trace formatting work, as shown by benchmark or inspection.

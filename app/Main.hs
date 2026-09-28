@@ -12,10 +12,11 @@ import IPOCL.Domains.Tiny
 import IPOCL.Domains.Tower
 import IPOCL.Report
 import IPOCL.Syntax
+import IPOCL.Trace
 import IPOCL.Validate
 import Options.Applicative
 import System.Exit (exitFailure)
-import System.IO (stderr)
+import System.IO (IOMode (WriteMode), stderr, withFile)
 
 data Command = Builtin Text SolveOpts
 
@@ -24,6 +25,7 @@ data SolveOpts = SolveOpts
   , optMaxNodes :: Maybe Int
   , optTimeout :: Maybe Double
   , optCount :: Int
+  , optTrace :: Maybe FilePath
   }
 
 builtins :: [(Text, Problem)]
@@ -42,6 +44,7 @@ solveOpts =
     <*> optional (option auto (long "max-nodes" <> metavar "N" <> help "Maximum nodes to expand"))
     <*> optional (option auto (long "timeout" <> metavar "SECONDS" <> help "Wall-clock limit"))
     <*> option auto (long "count" <> metavar "N" <> value 1 <> help "Number of distinct stories")
+    <*> optional (strOption (long "trace" <> metavar "FILE" <> help "Write a search trace to FILE"))
   where
     readMode = \case
       "ipocl" -> Right IPOCL
@@ -77,7 +80,9 @@ run p opts = do
           , cfgTimeout = optTimeout opts
           , cfgCount = optCount opts
           }
-  r <- solve cfg p
+  r <- case optTrace opts of
+    Nothing -> solve cfg p
+    Just file -> withFile file WriteMode $ \h -> solve cfg {cfgTrace = Just (TIO.hPutStr h . formatEvent)} p
   forM_ (zip [1 :: Int ..] (resultStories r)) $ \(i, plan) -> do
     TIO.putStrLn ("Story " <> T.pack (show i))
     TIO.putStr (renderPlan plan)

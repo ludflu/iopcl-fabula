@@ -45,6 +45,7 @@ data SearchEvent
       , evParent :: !(Maybe Int)
       , evReason :: !Text
       , evFlaw :: !(Maybe Flaw)
+      , evDeadEnd :: !Bool
       , evChildren :: !Int
       , evPlan :: !Plan
       }
@@ -76,16 +77,16 @@ search env cfg root = go (maybe Set.empty Set.singleton (key 0 root)) (IM.single
             p = nPlan node
          in case expand env p of
               Solution ->
-                Visited i (nParent node) (nReason node) Nothing 0 p
+                Visited i (nParent node) (nReason node) Nothing False 0 p
                   : FoundSolution i p
                   : go rest nodes' next seen
-              DeadEnd -> Visited i (nParent node) (nReason node) Nothing 0 p : go rest nodes' next seen
+              DeadEnd f -> Visited i (nParent node) (nReason node) f True 0 p : go rest nodes' next seen
               Refined f cs ->
                 let (kids, seen') = dedupe seen cs
                     numbered = zip [next ..] kids
                     frontier' = foldr (\(j, c) acc -> maybe acc (`Set.insert` acc) (key j (childPlan c))) rest numbered
                     nodes'' = foldr (\(j, c) acc -> IM.insert j (Node (Just i) (childReason c) (childPlan c)) acc) nodes' numbered
-                 in Visited i (nParent node) (nReason node) (Just f) (length cs) p
+                 in Visited i (nParent node) (nReason node) (Just f) False (length cs) p
                       : go frontier' nodes'' (next + length kids) seen'
     dedupe seen cs = case scSignature cfg of
       Nothing -> (cs, seen)

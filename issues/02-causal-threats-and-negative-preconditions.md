@@ -9,10 +9,10 @@
 
 **Blocked by:** 01 (Tracer bullet: POCL solves a one-action story from the CLI).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `narrative-planning builtin tower --mode pocl` returns a valid plan, for example "princess kills king; princess locks herself in tower".
-- [ ] A test plan with an unresolved clobbering Step is flagged as a causal threat. Each of the three resolvers produces a consistent child when it applies.
-- [ ] Negative preconditions that the initial state satisfies (the fact is absent) are supported by the init Step.
-- [ ] Every returned plan passes validation, and simulating it reaches the Outcome.
-- [ ] Property test: no refinement produces a child with cyclic orderings or inconsistent bindings.
+- [x] `narrative-planning builtin tower --mode pocl` returns a valid plan, for example "princess kills king; princess locks herself in tower".
+- [x] A test plan with an unresolved clobbering Step is flagged as a causal threat. Each of the three resolvers produces a consistent child when it applies.
+- [x] Negative preconditions that the initial state satisfies (the fact is absent) are supported by the init Step.
+- [x] Every returned plan passes validation, and simulating it reaches the Outcome.
+- [x] Property test: no refinement produces a child with cyclic orderings or inconsistent bindings.

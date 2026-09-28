@@ -54,7 +54,8 @@ data Child = Child {childPlan :: !Plan, childReason :: !Text}
 
 data Expansion
   = Solution
-  | DeadEnd
+  | DeadEnd !(Maybe Flaw)
+  -- ^ The flaw that cannot be repaired, or 'Nothing' when only Orphans remain.
   | Refined !Flaw ![Child]
 
 -- | All flaws of a plan: threats first, then the rest in tie-break order.
@@ -77,7 +78,7 @@ isThreat = \case
 expand :: Env -> Plan -> Expansion
 expand env plan = case flaws env plan of
   []
-    | envMode env == IPOCL && not (null (orphans plan)) -> DeadEnd
+    | envMode env == IPOCL && not (null (orphans plan)) -> DeadEnd Nothing
     | otherwise -> Solution
   f : _ | isThreat f -> result f (refine env plan f)
   fs ->
@@ -86,7 +87,7 @@ expand env plan = case flaws env plan of
           (_, _, f, cs) : _ -> result f cs
           [] -> Solution
   where
-    result _ [] = DeadEnd
+    result f [] = DeadEnd (Just f)
     result f cs = Refined f cs
 
 refine :: Env -> Plan -> Flaw -> [Child]

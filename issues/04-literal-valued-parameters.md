@@ -8,8 +8,8 @@
 
 **Blocked by:** 03 (IPOCL mode: Frames, motivation and Orphans).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A small domain with `order` and `give` solves in IPOCL mode. In the result, the knight's Frame for "the king has the lamp" is motivated by the king's order Step, whose objective is bound to that literal.
-- [ ] Unit tests cover unifying nested and negative literals inside `intends`, and show that unification fails when polarity differs.
-- [ ] The validator accepts plans whose Steps still have literal-valued parameters bound only through the binding store.
+- [x] A small domain with `order` and `give` solves in IPOCL mode. In the result, the knight's Frame for "the king has the lamp" is motivated by the king's order Step, whose objective is bound to that literal.
+- [x] Unit tests cover unifying nested and negative literals inside `intends`, and show that unification fails when polarity differs.
+- [x] The validator accepts plans whose Steps still have literal-valued parameters bound only through the binding store.

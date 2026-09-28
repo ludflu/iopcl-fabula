@@ -9,10 +9,10 @@
 
 **Blocked by:** 04 (Literal-valued parameters).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `builtin bribe` returns a Story containing Bribe, Give, and Coerce.
-- [ ] In that Story, the Villain's Frame for controlling the President is motivated by the initial state, and the Hero's Frame for the Villain having the money is motivated by Coerce.
-- [ ] Coerce is in the Villain's Interval.
-- [ ] An equivalence test on sampled search paths shows that the recomputed candidates match the paper's eager formulation (frame discovery plus spreading activation).
-- [ ] No Step–Frame pair is ever proposed twice in one search branch.
+- [x] `builtin bribe` returns a Story containing Bribe, Give, and Coerce.
+- [x] In that Story, the Villain's Frame for controlling the President is motivated by the initial state, and the Hero's Frame for the Villain having the money is motivated by Coerce.
+- [x] Coerce is in the Villain's Interval.
+- [x] An equivalence test on sampled search paths shows that the recomputed candidates match the paper's eager formulation (frame discovery plus spreading activation).
+- [x] No Step–Frame pair is ever proposed twice in one search branch.

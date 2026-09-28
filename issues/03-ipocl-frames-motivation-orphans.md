@@ -14,10 +14,10 @@ Happenings never get Frames. This ticket covers single-Actor schemas only.
 
 **Blocked by:** 02 (Causal threats and negative preconditions).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `builtin tower --mode ipocl` reports that the search space is exhausted, while POCL mode on the same problem still solves it.
-- [ ] A Tower variant with motivating actions solves in IPOCL mode, and every Step in the result is in an Interval.
-- [ ] A Frame's Character can be motivated by an Intention listed in the initial state.
-- [ ] A Happening in a solution is never an Orphan and never in an Interval.
-- [ ] The validator rejects hand-built plans that have an Orphan, an unmotivated Frame, or a Motivating step that does not precede the Interval.
+- [x] `builtin tower --mode ipocl` reports that the search space is exhausted, while POCL mode on the same problem still solves it.
+- [x] A Tower variant with motivating actions solves in IPOCL mode, and every Step in the result is in an Interval.
+- [x] A Frame's Character can be motivated by an Intention listed in the initial state.
+- [x] A Happening in a solution is never an Orphan and never in an Interval.
+- [x] The validator rejects hand-built plans that have an Orphan, an unmotivated Frame, or a Motivating step that does not precede the Interval.

@@ -10,9 +10,9 @@
 
 **Blocked by:** 05 (Intent planning and "contracting out").
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A reduced Aladdin problem with a marriage solves. In the result, the `marry` Step is in both the groom's and the bride's Intervals.
-- [ ] A plan where only one Actor of a Joint action has a Frame is not accepted as a solution.
-- [ ] Two Frames of the same Character with complementary Character goals end up fully ordered. Every Step of one Frame, including its Motivating step, precedes every Step of the other.
-- [ ] Adopting a Step into an ordered Frame adds the orderings in the recorded direction. If that creates a cycle, the child is pruned.
+- [x] A reduced Aladdin problem with a marriage solves. In the result, the `marry` Step is in both the groom's and the bride's Intervals.
+- [x] A plan where only one Actor of a Joint action has a Frame is not accepted as a solution.
+- [x] Two Frames of the same Character with complementary Character goals end up fully ordered. Every Step of one Frame, including its Motivating step, precedes every Step of the other.
+- [x] Adopting a Step into an ordered Frame adds the orderings in the recorded direction. If that creates a cycle, the child is pruned.

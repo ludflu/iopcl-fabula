@@ -13,11 +13,11 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The build and test commands pass with `-Wall` and no warnings.
-- [ ] `narrative-planning builtin tiny` prints a plan with exactly one Step between the init and goal Steps.
-- [ ] Grounding enumerates one ground action per legal constraint binding and rejects bindings that violate ground `≠` preconditions.
-- [ ] Adding an ordering that would create a cycle is rejected, as shown by property tests.
-- [ ] The validator accepts the solution and rejects a hand-built plan that has an unsupported precondition.
-- [ ] The syntax types can represent every construct in the Aladdin domain of Appendix A.1, as shown by a construction test.
+- [x] The build and test commands pass with `-Wall` and no warnings.
+- [x] `narrative-planning builtin tiny` prints a plan with exactly one Step between the init and goal Steps.
+- [x] Grounding enumerates one ground action per legal constraint binding and rejects bindings that violate ground `≠` preconditions.
+- [x] Adding an ordering that would create a cycle is rejected, as shown by property tests.
+- [x] The validator accepts the solution and rejects a hand-built plan that has an unsupported precondition.
+- [x] The syntax types can represent every construct in the Aladdin domain of Appendix A.1, as shown by a construction test.
