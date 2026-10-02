@@ -6,6 +6,7 @@ module IPOCL.Narrate
   ) where
 
 import Data.IntMap.Strict qualified as IM
+import Data.IntSet qualified as IS
 import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
@@ -19,15 +20,17 @@ import IPOCL.Syntax
 
 -- | One line per Step in linearised order. Each Frame's
 -- @"<Character> wants <Character goal>."@ line follows its Motivating step,
--- or opens the Story when the initial state motivates it.
+-- or opens the Story when the initial state motivates it. The first Step of
+-- each Interval says what it is for, and the final Step says it got there.
 narrate :: Problem -> Plan -> Text
-narrate p plan = T.unlines (concatMap stepLines (linearize plan))
+narrate p plan = T.unlines (concatMap stepLines order)
   where
     d = problemDomain p
+    order = linearize plan
     stepLines s
       | stepId s == goalStepId = []
       | stepId s == initStepId = wants s
-      | otherwise = renderStep d plan s : wants s
+      | otherwise = withMotive s (renderStep d plan s) : wants s
     wants s =
       [ symbolText (frameCharacter f) <> " wants " <> goal (resolvedGoal plan f) <> "."
       | f <- IM.elems (planFrames plan)
@@ -36,6 +39,21 @@ narrate p plan = T.unlines (concatMap stepLines (linearize plan))
     goal l
       | litPositive l = renderLiteral d l
       | otherwise = "it not to be the case that " <> renderLiteral d (negateLit l)
+    position = IM.fromList (zip (map stepId order) [0 :: Int ..])
+    firstOf f = fst <$> IS.minView (IS.map (\s -> IM.findWithDefault maxBound s position) (frameInterval f))
+    opens s = [f | f <- IM.elems (planFrames plan), (== Just (position IM.! stepId s)) (firstOf f)]
+    closes s = [f | f <- IM.elems (planFrames plan), frameFinal f == Just (stepId s)]
+    goals fs = T.intercalate " and " (map (renderLiteral d . resolvedGoal plan) fs)
+    withMotive s text =
+      let opening = opens s
+          closing = filter (`notElem` opening) (closes s)
+          sentence = stripPeriod text
+       in case (opening, closing) of
+            ([], []) -> text
+            (_, []) -> sentence <> " so that " <> goals opening <> "."
+            ([], _) -> sentence <> ", and so " <> goals closing <> "."
+            (_, _) -> sentence <> " so that " <> goals opening <> ", and so " <> goals closing <> "."
+    stripPeriod t = fromMaybe t (T.stripSuffix "." t)
 
 -- | A Step through its schema's @:text@ template, or @"name arg1 arg2"@.
 renderStep :: Domain -> Plan -> Step -> Text

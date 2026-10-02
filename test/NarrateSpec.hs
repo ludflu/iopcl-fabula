@@ -2,7 +2,7 @@ module NarrateSpec (spec) where
 
 import Data.Char (isAlphaNum)
 import Data.IntMap.Strict qualified as IM
-import Data.List (elemIndex)
+import Data.List (elemIndex, sort)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -10,8 +10,10 @@ import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import Helpers
 import IPOCL
+import IPOCL.Cards
 import IPOCL.Domains.Bribe
 import IPOCL.Dot
+import IPOCL.Linearize
 import IPOCL.Narrate
 import IPOCL.Pretty
 import IPOCL.Syntax
@@ -33,8 +35,8 @@ spec = do
       plan <- firstStory IPOCL bribeProblem
       let ls = T.lines (narrate bribeProblem plan)
           at n = fromMaybe (error ("missing line: " <> T.unpack n)) (lineIndex n ls)
-      at "villain wants villain controls president." `shouldSatisfy` (< at "villain coerces hero.")
-      at "hero wants villain has money." `shouldSatisfy` (< at "hero gives money to villain.")
+      at "villain wants villain controls president." `shouldSatisfy` (< at "villain coerces hero so that villain controls president.")
+      at "hero wants villain has money." `shouldSatisfy` (< at "hero gives money to villain so that villain has money.")
     it "matches the Bribe golden narration" $ do
       plan <- firstStory IPOCL bribeProblem
       golden <- TIO.readFile "test/golden/bribe-narration.txt"
@@ -42,7 +44,16 @@ spec = do
     it "falls back to \"name args\" for a Step without a template" $ do
       let p = withoutTemplates bribeProblem
       plan <- firstStory IPOCL p
-      T.lines (narrate p plan) `shouldContain` ["give hero villain money"]
+      T.lines (narrate p plan) `shouldContain` ["give hero villain money so that villain has money."]
+    it "opens a Frame at its first Step and closes it at its final Step" $ do
+      plan <- firstStory IPOCL bribeProblem
+      let ls = T.lines (narrate bribeProblem plan)
+      ls `shouldContain` ["villain coerces hero so that villain controls president."]
+      ls `shouldContain` ["villain bribes president with money, and so villain controls president."]
+    it "gives a single-Step Frame one combined clause" $ do
+      plan <- firstStory IPOCL bribeProblem
+      let ls = T.lines (narrate bribeProblem plan)
+      filter ("hero gives" `T.isPrefixOf`) ls `shouldBe` ["hero gives money to villain so that villain has money."]
     it "renders a negated Character goal" $
       renderLiteral bribeDomain (nlit "has" ["hero", "money"]) `shouldBe` "it is not the case that hero has money"
     it "phrases a negated Character goal as something wanted not to be the case" $ do
@@ -51,6 +62,27 @@ spec = do
       ls `shouldContain` ["hero wants it not to be the case that hero has money."]
     it "falls back to the printed literal when a predicate has no template" $
       renderLiteral bribeDomain (lit "armed" ["hero"]) `shouldBe` prettyLiteral (lit "armed" ["hero"])
+
+  describe "scene cards" $ do
+    it "has one card per Step other than init and goal, in narration order" $ do
+      plan <- firstStory IPOCL bribeProblem
+      map (stepId . cardStep) (sceneCards plan) `shouldBe` [stepId s | s <- linearize plan, stepId s > goalStepId]
+    it "shows every link between two Steps on exactly the source's and the target's cards" $ do
+      plan <- firstStory IPOCL bribeProblem
+      let cards = sceneCards plan
+          onCards r = [(stepId (cardStep c), side) | c <- cards, (side, rs) <- [("in", cardIncoming c), ("out", cardOutgoing c)], r `elem` rs]
+          refs = concatMap cardIncoming cards ++ concatMap cardOutgoing cards
+          between r = linkSource r > goalStepId && linkTarget r > goalStepId
+      refs `shouldSatisfy` any between
+      mapM_ (\r -> sort (onCards r) `shouldBe` sort [(linkTarget r, "in" :: Text), (linkSource r, "out")]) (filter between refs)
+    it "flags a Step none of whose effects is used" $ do
+      plan <- firstStory IPOCL bribeProblem
+      let unlinked = plan {planLinks = Set.filter ((/= goalStepId) . linkTo) (planLinks plan)}
+      renderCards bribeProblem unlinked `shouldSatisfy` T.isInfixOf "The consequence: no consequence used"
+    it "matches the Bribe golden cards" $ do
+      plan <- firstStory IPOCL bribeProblem
+      golden <- TIO.readFile "test/golden/bribe-cards.txt"
+      renderCards bribeProblem plan `shouldBe` golden
 
   describe "planToDot" $ do
     it "matches the Bribe golden DOT" $ do

@@ -1,0 +1,33 @@
+Scene 1: villain coerces hero.
+  What happens:
+    - the initial state gives the reason: villain wants villain controls president
+  The consequence:
+    - hero comes to want villain has money
+  Why it matters:
+    - villain wants villain controls president
+  Internal change:
+    - hero comes to want villain has money
+  And so?
+    - hero wants villain has money, which leads to hero gives money to villain
+
+Scene 2: hero gives money to villain.
+  What happens:
+    - the initial state makes it true that hero has money
+    - villain coerces hero gives the reason: hero wants villain has money
+  The consequence:
+    - villain has money
+  Why it matters:
+    - hero wants villain has money
+  And so?
+    - villain has money, needed by villain bribes president with money
+
+Scene 3: villain bribes president with money.
+  What happens:
+    - hero gives money to villain makes it true that villain has money
+  The consequence:
+    - president is corrupt
+  Why it matters:
+    - villain wants villain controls president
+  And so?
+    - president is corrupt, needed by the Outcome
+

@@ -38,6 +38,7 @@ library
         IPOCL.Validate
         IPOCL.Linearize
         IPOCL.Narrate
+        IPOCL.Cards
         IPOCL.Dot
         IPOCL.Parser
         IPOCL.Preferences

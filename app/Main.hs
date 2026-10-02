@@ -5,6 +5,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import IPOCL
+import IPOCL.Cards
 import IPOCL.DomainCheck
 import IPOCL.Domains.Aladdin
 import IPOCL.Domains.Bribe
@@ -37,6 +38,7 @@ data SolveOpts = SolveOpts
   , optSeed :: Int
   , optDedupe :: Bool
   , optNarrate :: Bool
+  , optCards :: Bool
   , optDot :: Maybe FilePath
   }
 
@@ -63,6 +65,7 @@ solveOpts =
     <*> option auto (long "seed" <> metavar "N" <> value 0 <> help "Seed for breaking ties between equally good plans")
     <*> switch (long "dedupe" <> help "Drop plans already reached by another refinement order")
     <*> (not <$> switch (long "no-narrate" <> help "Do not print the narration"))
+    <*> switch (long "cards" <> help "Print a Story Genius scene card for each Step")
     <*> optional (strOption (long "dot" <> metavar "FILE" <> help "Write Story 1 as Graphviz to FILE; Story N>1 goes to FILE with -N before the extension"))
   where
     readMode = \case
@@ -121,6 +124,9 @@ run p opts = do
     when (optNarrate opts) $ do
       TIO.putStrLn "Narration:"
       TIO.putStr (T.unlines (map ("  " <>) (T.lines (narrate p plan))))
+    when (optCards opts) $ do
+      TIO.putStrLn "Scene cards:"
+      TIO.putStr (T.unlines (map ("  " <>) (T.lines (renderCards p plan))))
     forM_ (optDot opts) $ \file -> TIO.writeFile (dotFileFor file i) (planToDot p plan)
     let problems = validatePlan (optMode opts) p plan
     unless (null problems) $ do
