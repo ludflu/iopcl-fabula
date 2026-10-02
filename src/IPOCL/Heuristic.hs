@@ -152,9 +152,18 @@ additiveHeuristic r env plan = do
   opens <- traverse (\(_, l) -> literalCost r b l) (planOpenConds plan)
   motivations <- traverse (\f -> (1 +) <$> literalCost r b (frameIntention f)) unmotivated
   orphanCosts <- traverse orphanCost (intentionalOrphans env plan)
-  Just (sum opens + sum motivations + sum orphanCosts + length (planPendingIntent plan) + length threats)
+  required <- traverse (\(c, l) -> (1 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym c, TLit l]))) unmetRequired
+  Just (sum opens + sum motivations + sum orphanCosts + sum required + length (planPendingIntent plan) + length threats)
   where
     b = planBindings plan
+    -- The open condition already counts the goal; this is its future Frame's
+    -- open motivation.
+    unmetRequired =
+      [ (c, l)
+      | envMode env == IPOCL
+      , (s, l) <- planOpenConds plan
+      , Just c <- [IM.lookup s (planRequired plan)]
+      ]
     unmotivated = [f | f <- IM.elems (planFrames plan), isNothing (frameMotivator f)]
     threats = filter isThreat (flaws env plan)
     -- An Orphan with a pending intent flaw for one of its Actor's Frames is one

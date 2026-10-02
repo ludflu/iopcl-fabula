@@ -30,6 +30,7 @@ narrate p plan = T.unlines (concatMap stepLines order)
     stepLines s
       | stepId s == goalStepId = []
       | stepId s == initStepId = wants s
+      | not (isActionStep s) = []
       | otherwise = withMotive s (renderStep d plan s) : wants s
     wants s =
       [ symbolText (frameCharacter f) <> " wants " <> goal (resolvedGoal plan f) <> "."

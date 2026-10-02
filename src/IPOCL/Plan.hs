@@ -13,6 +13,7 @@ module IPOCL.Plan
   , initialPlan
   , planStepList
   , actionSteps
+  , isActionStep
   , stepLabel
   , resolvedGoal
   , frameIntention
@@ -26,6 +27,7 @@ import Data.Ord (Down)
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IS
+import Data.Maybe (fromMaybe, isJust)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -47,7 +49,7 @@ goalStepId = 1
 data Step = Step
   { stepId :: !StepId
   , stepAction :: !(Maybe GroundAction)
-  -- ^ 'Nothing' for the init and goal Steps.
+  -- ^ 'Nothing' for the init and goal Steps and pseudo-steps.
   , stepArgs :: ![Term]
   , stepActors :: ![Symbol]
   , stepHappening :: !Bool
@@ -90,6 +92,8 @@ data Plan = Plan
   , planThreats :: !(Set (CausalLink, Down StepId))
   -- ^ Causal threats as (link, clobbering Step). The descending Step order is
   -- the order flaw selection has always seen; changing it changes the search.
+  , planRequired :: !(IntMap Symbol)
+  -- ^ Pseudo-steps of Required Frames (ADR-0004), with their Character.
   , planNextStep :: !StepId
   , planNextFrame :: !FrameId
   }
@@ -109,36 +113,43 @@ data Mode = IPOCL | POCL
 initialPlan :: Problem -> Plan
 initialPlan p =
   Plan
-    { planSteps = IM.fromList [(initStepId, initStep), (goalStepId, goalStep)]
+    { planSteps = IM.fromList ([(initStepId, initStep), (goalStepId, goalStep)] ++ [(stepId s, s) | s <- pseudo])
     , planBindings = emptyBindings
-    , planOrder = boundedOrder initStepId goalStepId
+    , planOrder = foldl (\o s -> fromMaybe o (addOrder initStepId (stepId s) o >>= addOrder (stepId s) goalStepId)) (boundedOrder initStepId goalStepId) pseudo
     , planLinks = Set.empty
     , planFrames = IM.empty
     , planFrameOrder = Set.empty
-    , planOpenConds = [(goalStepId, l) | l <- problemOutcome p]
+    , planOpenConds = [(goalStepId, l) | l <- problemOutcome p] ++ [(stepId s, g) | s <- pseudo, g <- stepPre s]
     , planPendingIntent = []
     , planProposedIntent = Set.empty
     , planThreatOrders = Set.empty
     , planThreats = Set.empty
-    , planNextStep = 2
+    , planRequired = IM.fromList [(k, rfCharacter r) | (k, r) <- required]
+    , planNextStep = 2 + length required
     , planNextFrame = 0
     }
   where
     initStep = Step initStepId Nothing [] [] True [] (map pos (Set.toList (problemInit p)))
     goalStep = Step goalStepId Nothing [] [] True (problemOutcome p) []
+    required = zip [2 ..] (problemRequiredFrames p)
+    pseudo = [Step k Nothing [] [] True [rfGoal r] [] | (k, r) <- required]
 
 planStepList :: Plan -> [Step]
 planStepList = IM.elems . planSteps
 
--- | Every Step except init and goal.
+-- | Every Step except init, goal and pseudo-steps.
 actionSteps :: Plan -> [Step]
-actionSteps = filter (\s -> stepId s > goalStepId) . planStepList
+actionSteps = filter isActionStep . planStepList
+
+isActionStep :: Step -> Bool
+isActionStep = isJust . stepAction
 
 stepLabel :: Plan -> Step -> Text
 stepLabel plan s = case stepAction s of
   Nothing
     | stepId s == initStepId -> "init"
-    | otherwise -> "goal"
+    | stepId s == goalStepId -> "goal"
+    | otherwise -> "required " <> maybe "?" symbolText (IM.lookup (stepId s) (planRequired plan)) <> " " <> T.unwords (map (prettyLiteral . resolveLiteral (planBindings plan)) (stepPre s))
   Just g ->
     schemaName (gaSchema g)
       <> "("

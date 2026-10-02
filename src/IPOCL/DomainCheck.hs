@@ -13,6 +13,7 @@ import IPOCL.Syntax
 -- | Every problem found; an empty list means the problem is usable.
 checkProblem :: Problem -> [Text]
 checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPreference (problemPreferences p)
+    ++ concatMap checkRequired (problemRequiredFrames p)
   where
     d = problemDomain p
     statics = staticPredicates d
@@ -45,4 +46,8 @@ checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPrefe
       ForbidGoal c _ -> unknown c
       MaxFrames c _ -> unknown c
       NoRepeatSteps -> []
+    checkRequired (RequiredFrame c g) =
+      ["required frame names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]
+        ++ ["required frame goal " <> prettyLiteral g <> " must be ground" | not (isGroundLiteral g)]
+        ++ ["required frame goal may not be an intention" | isIntends g]
     unknown c = ["preference names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]

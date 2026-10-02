@@ -26,7 +26,7 @@ firstStory m p = case resultStories (solveWith m p) of
 
 -- | Step labels in narration order, without init and goal.
 storyLabels :: Plan -> [Text]
-storyLabels plan = [stepLabel plan s | s <- linearize plan, stepId s > goalStepId]
+storyLabels plan = [stepLabel plan s | s <- linearize plan, isActionStep s]
 
 -- | (character, goal, interval step labels, motivating step label).
 frameSummary :: Plan -> [(Text, Text, [Text], Text)]

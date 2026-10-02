@@ -235,9 +235,17 @@ openCondition env plan0 sNeed p =
   | est <- establishers env plan [sNeed] p
   , Just linked <- [link est]
   , (plan', note) <- afterEstablish env est linked
+  , fulfils plan' (estStep est)
   ]
   where
     plan = plan0 {planOpenConds = filter (/= (sNeed, p)) (planOpenConds plan0)}
+    -- A Required Frame's pseudo-step is supported only by the final Step of a
+    -- Frame of its Character for this goal (ADR-0004).
+    fulfils pl sAdd = case IM.lookup sNeed (planRequired pl) of
+      Just c
+        | envMode env == IPOCL ->
+            any (\f -> frameFinal f == Just sAdd && resolvedGoal pl f == resolveLiteral (planBindings pl) p) (framesOf pl c)
+      _ -> True
     link (Establisher pl sAdd _) = do
       o <- addOrder sAdd sNeed (planOrder pl)
       let l = CausalLink sAdd p sNeed

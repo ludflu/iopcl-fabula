@@ -66,7 +66,7 @@ spec = do
   describe "scene cards" $ do
     it "has one card per Step other than init and goal, in narration order" $ do
       plan <- firstStory IPOCL bribeProblem
-      map (stepId . cardStep) (sceneCards plan) `shouldBe` [stepId s | s <- linearize plan, stepId s > goalStepId]
+      map (stepId . cardStep) (sceneCards plan) `shouldBe` [stepId s | s <- linearize plan, isActionStep s]
     it "shows every link between two Steps on exactly the source's and the target's cards" $ do
       plan <- firstStory IPOCL bribeProblem
       let cards = sceneCards plan

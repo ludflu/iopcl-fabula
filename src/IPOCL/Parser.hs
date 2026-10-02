@@ -42,7 +42,7 @@ checkedProblem dPath dText pPath pText = do
       prefIssues =
         [ located sp issue
         | (pr, sp) <- zip (problemPreferences p) prefPos
-        , issue <- checkProblem p {problemDomain = d {domainSchemas = []}, problemPreferences = [pr]}
+        , issue <- checkProblem p {problemDomain = d {domainSchemas = []}, problemPreferences = [pr], problemRequiredFrames = []}
         ]
   case schemaIssues ++ prefIssues of
     [] -> Right p
@@ -215,6 +215,7 @@ data Section
   | SInit [Atom]
   | SGoal [Literal]
   | SPrefs [(Preference, SourcePos)]
+  | SRequired [RequiredFrame]
 
 problemFile :: Domain -> P (Problem, [SourcePos])
 problemFile d = between sc eof . parens $ do
@@ -231,6 +232,7 @@ problemFile d = between sc eof . parens $ do
         , keyed "init" (SInit <$> many (parens atomBody))
         , keyed "goal" (SGoal <$> conj literalBody)
         , keyed "preferences" (SPrefs <$> many (flip (,) <$> getSourcePos <*> parens preferenceBody))
+        , keyed "required-frames" (SRequired <$> many (parens (RequiredFrame . Symbol <$> name <*> literalP)))
         ]
   uniqueKeys [(so, k) | (so, k, _) <- sections]
   let prefs = concat [ps | (_, _, SPrefs ps) <- sections]
@@ -242,6 +244,7 @@ problemFile d = between sc eof . parens $ do
         , problemInit = Set.fromList (concat [as | (_, _, SInit as) <- sections])
         , problemOutcome = concat [gs | (_, _, SGoal gs) <- sections]
         , problemPreferences = map fst prefs
+        , problemRequiredFrames = concat [rs | (_, _, SRequired rs) <- sections]
         }
     , map snd prefs
     )

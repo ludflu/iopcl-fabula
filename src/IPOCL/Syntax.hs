@@ -31,6 +31,7 @@ module IPOCL.Syntax
   , Strength (..)
   , PreferenceRule (..)
   , Preference (..)
+  , RequiredFrame (..)
   , Problem (..)
   , schemaByName
     -- * Embedded DSL
@@ -170,6 +171,10 @@ data PreferenceRule
 data Preference = Preference {prefRule :: !PreferenceRule, prefStrength :: !Strength}
   deriving (Eq, Show)
 
+-- | A Frame every Story must contain (ADR-0004).
+data RequiredFrame = RequiredFrame {rfCharacter :: !Symbol, rfGoal :: !Literal}
+  deriving (Eq, Show)
+
 data Problem = Problem
   { problemName :: !Text
   , problemDomain :: !Domain
@@ -177,6 +182,7 @@ data Problem = Problem
   , problemInit :: !(Set Atom)
   , problemOutcome :: ![Literal]
   , problemPreferences :: ![Preference]
+  , problemRequiredFrames :: ![RequiredFrame]
   }
   deriving (Eq, Show)
 
@@ -243,4 +249,5 @@ problem n d cs i g =
     , problemInit = Set.fromList i
     , problemOutcome = g
     , problemPreferences = []
+    , problemRequiredFrames = []
     }

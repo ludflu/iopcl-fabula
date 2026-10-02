@@ -6,6 +6,7 @@ import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import IPOCL
 import IPOCL.Cards
+import IPOCL.Lint
 import IPOCL.DomainCheck
 import IPOCL.Domains.Aladdin
 import IPOCL.Domains.Bribe
@@ -103,6 +104,7 @@ run p opts = do
   unless (null issues) $ do
     mapM_ (TIO.hPutStrLn stderr) issues
     exitFailure
+  mapM_ (TIO.hPutStrLn stderr . ("warning: " <>)) (problemWarnings p)
   let cfg =
         defaultSolveConfig
           { cfgMode = optMode opts

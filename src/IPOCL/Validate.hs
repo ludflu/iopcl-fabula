@@ -24,7 +24,7 @@ validatePlan mode prob plan =
   concat
     [ supportViolations
     , threatViolations
-    , if mode == IPOCL then frameViolations ++ orphanViolations else []
+    , if mode == IPOCL then frameViolations ++ orphanViolations ++ requiredViolations else []
     , simulate prob plan
     ]
   where
@@ -78,6 +78,19 @@ validatePlan mode prob plan =
                 [name <> " is not motivated by " <> lbl m | not (provides m (res (frameIntention f)))]
                   ++ [name <> ": motivating step does not precede " <> lbl s | s <- members, not (before o m s)]
     isActor s c = maybe False ((c `elem`) . stepActors) (IM.lookup s steps)
+
+    requiredViolations =
+      [ "required frame " <> symbolText c <> " wants " <> prettyLiteral g <> " is not in the story"
+      | RequiredFrame c g <- problemRequiredFrames prob
+      , not (any (fulfilled c g) (planStepList plan))
+      ]
+    fulfilled c g s =
+      not (isActionStep s)
+        && map res (stepPre s) == [g]
+        && IM.lookup (stepId s) (planRequired plan) == Just c
+        && any
+          (\l -> linkTo l == stepId s && any (\f -> frameCharacter f == c && frameFinal f == Just (linkFrom l) && res (frameGoal f) == g) (IM.elems (planFrames plan)))
+          (planLinks plan)
 
     orphanViolations =
       [ lbl (stepId s) <> " is not intentional for " <> symbolText a

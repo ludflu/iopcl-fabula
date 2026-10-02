@@ -53,7 +53,7 @@ linkTarget = \case
 
 -- | One card per Step other than init and goal, in narration order.
 sceneCards :: Plan -> [SceneCard]
-sceneCards plan = map card (filter ((> goalStepId) . stepId) order)
+sceneCards plan = map card (filter isActionStep order)
   where
     b = planBindings plan
     order = linearize plan
@@ -89,7 +89,10 @@ renderCards p plan = T.unlines (concat (zipWith render [1 :: Int ..] (sceneCards
     stepText sid = maybe "?" (renderStep d plan) (IM.lookup sid (planSteps plan))
     clause sid = let t = stepText sid in fromMaybe t (T.stripSuffix "." t)
     source sid = if sid == initStepId then "the initial state" else clause sid
-    target sid = if sid == goalStepId then "the Outcome" else clause sid
+    target sid
+      | sid == goalStepId = "the Outcome"
+      | Just c <- IM.lookup sid (planRequired plan) = "the Required Frame of " <> symbolText c
+      | otherwise = clause sid
     literal = renderLiteral d . resolveLiteral b
     frameText fid = case IM.lookup fid (planFrames plan) of
       Just f -> symbolText (frameCharacter f) <> " wants " <> literal (frameGoal f)

@@ -208,3 +208,4 @@ genProblem =
     <*> (Set.fromList <$> small (genAtom [] 2))
     <*> small (genLiteral [] 2)
     <*> small genPreference
+    <*> small (RequiredFrame . Symbol <$> identifier <*> genLiteral [] 2)

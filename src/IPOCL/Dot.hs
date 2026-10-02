@@ -49,7 +49,7 @@ planToDot p plan =
         ++ ["  }"]
     frameLabel f = symbolText (frameCharacter f) <> ": " <> prettyLiteral (resolvedGoal plan f)
     nodeLine s
-      | stepId s == initStepId || stepId s == goalStepId =
+      | not (isActionStep s) =
           node s <> " [label=" <> quote (stepLabel plan s) <> ", shape=ellipse, style=filled, fillcolor=lightgrey];"
       | otherwise = node s <> " [label=" <> quote (stepLabel plan s <> alsoIn s) <> happening s <> "];"
     alsoIn s = case [frameId f | f <- frames, IS.member (stepId s) (frameInterval f), home (stepId s) /= Just (frameId f)] of

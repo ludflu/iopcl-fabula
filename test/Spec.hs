@@ -6,6 +6,7 @@ import HeuristicSpec qualified
 import IntentSpec qualified
 import JointSpec qualified
 import NarrateSpec qualified
+import RequiredSpec qualified
 import TraceSpec qualified
 import OrderSpec qualified
 import ParserSpec qualified
@@ -30,3 +31,4 @@ main = hspec $ do
   describe "Distinct, reproducible Stories" StoriesSpec.spec
   describe "Parser" ParserSpec.spec
   describe "Narration and DOT" NarrateSpec.spec
+  RequiredSpec.spec

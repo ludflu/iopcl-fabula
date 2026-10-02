@@ -17,7 +17,7 @@ renderPlan plan =
   T.unlines $
     ["Steps:"]
       ++ [ "  " <> T.pack (show i) <> ". " <> stepLabel plan s <> happeningMark s
-         | (i, s) <- zip [1 :: Int ..] (filter ((> goalStepId) . stepId) (linearize plan))
+         | (i, s) <- zip [1 :: Int ..] (filter isActionStep (linearize plan))
          ]
       ++ (if IM.null (planFrames plan) then [] else "Frames:" : map frameLine (IM.elems (planFrames plan)))
   where
