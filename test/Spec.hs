@@ -8,6 +8,7 @@ import JointSpec qualified
 import NarrateSpec qualified
 import RequiredSpec qualified
 import InnerStorySpec qualified
+import RelevanceSpec qualified
 import TraceSpec qualified
 import OrderSpec qualified
 import ParserSpec qualified
@@ -34,3 +35,4 @@ main = hspec $ do
   describe "Narration and DOT" NarrateSpec.spec
   RequiredSpec.spec
   InnerStorySpec.spec
+  RelevanceSpec.spec

@@ -168,6 +168,8 @@ data PreferenceRule
   | ForbidGoal !Symbol !Literal
   | MaxFrames !Symbol !Int
   | NoRepeatSteps
+  | ThirdRail
+  | ServesProtagonist !Symbol
   deriving (Eq, Show)
 
 data Preference = Preference {prefRule :: !PreferenceRule, prefStrength :: !Strength}

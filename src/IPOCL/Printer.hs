@@ -71,6 +71,8 @@ printPreference (Preference rule strength) = sexp (ruleParts ++ strengthParts)
       ForbidGoal c l -> ["forbid-goal", symbolText c, printLiteral l]
       MaxFrames c n -> ["max-frames", symbolText c, showT n]
       NoRepeatSteps -> ["no-repeat-steps"]
+      ThirdRail -> ["third-rail"]
+      ServesProtagonist c -> ["serves-protagonist", symbolText c]
     strengthParts = case strength of
       Hard -> [":hard"]
       Soft 10 -> []

@@ -3,13 +3,18 @@
 -- planning.
 module IPOCL.Lint
   ( problemWarnings
+  , planWarnings
   ) where
 
+import Data.IntMap.Strict qualified as IM
+import Data.IntSet qualified as IS
 import Data.Maybe (isJust, isNothing)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import IPOCL.Bindings
 import IPOCL.Ground
 import IPOCL.Heuristic
+import IPOCL.Plan
 import IPOCL.Pretty
 import IPOCL.Syntax
 
@@ -40,3 +45,26 @@ problemWarnings p =
 -- | Some effect of the action can make the belief false.
 negates :: GroundAction -> Atom -> Bool
 negates a m = any (\e -> not (litPositive e) && isJust (unifyAtoms emptyBindings (litAtom e) m)) (gaEff a)
+
+-- | "An internal change must lead to action": every Realization, and every
+-- Step that gives a Character an Intention, needs an outgoing causal or
+-- motivation link to a later Step in which that Character is an Actor.
+planWarnings :: Problem -> Plan -> [Text]
+planWarnings p plan =
+  [ stepLabel plan s <> ": the internal change of " <> symbolText c <> " leads to no action by " <> symbolText c
+  | s <- actionSteps plan
+  , c <- changed s
+  , not (any (actsIn c) (successorsOf (stepId s)))
+  ]
+  where
+    b = planBindings plan
+    changed s =
+      [ c
+      | e <- map (resolveLiteral b) (stepEff s)
+      , if litPositive e then isIntends e else litAtom e `elem` problemMisbeliefs p
+      , TSym c : _ <- [atomArgs (litAtom e)]
+      ]
+    successorsOf s =
+      [linkTo l | l <- Set.toList (planLinks plan), linkFrom l == s]
+        ++ [t | f <- IM.elems (planFrames plan), frameMotivator f == Just s, t <- IS.toList (frameInterval f)]
+    actsIn c t = maybe False ((c `elem`) . stepActors) (IM.lookup t (planSteps plan))

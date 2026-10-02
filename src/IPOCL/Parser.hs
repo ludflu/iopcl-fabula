@@ -269,6 +269,8 @@ preferenceBody = Preference <$> rule <*> strength
         , keyword "forbid-goal" *> (ForbidGoal <$> character <*> literalP)
         , keyword "max-frames" *> (MaxFrames <$> character <*> integer)
         , NoRepeatSteps <$ keyword "no-repeat-steps"
+        , ThirdRail <$ keyword "third-rail"
+        , keyword "serves-protagonist" *> (ServesProtagonist <$> character)
         ]
     strength =
       (Hard <$ keyword ":hard")

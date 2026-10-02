@@ -87,7 +87,7 @@ events cfg p = distinct Set.empty (search env searchCfg (initialPlan p))
       defaultSearchConfig
         { scWeight = cfgWeight cfg
         , scGreedy = cfgGreedy cfg
-        , scHeuristic = \plan -> (+ softPenalty (problemPreferences p) plan) <$> heuristic (cfgHeuristic cfg) r env plan
+        , scHeuristic = \plan -> (+ softPenalty p (problemPreferences p) plan) <$> heuristic (cfgHeuristic cfg) r env plan
         , scSeed = cfgSeed cfg
         , scSignature = if cfgDedupe cfg then Just planSignature else Nothing
         , scCost = case cfgHeuristic cfg of

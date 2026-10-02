@@ -75,27 +75,27 @@ spec = do
   describe "violations" $ do
     it "counts Frames whose goal is forbidden" $ do
       story <- firstStory IPOCL bribeProblem
-      violations story (ForbidGoal "hero" (lit "has" ["villain", "money"])) `shouldBe` 1
-      violations story (ForbidGoal "hero" (lit "has" ["hero", "money"])) `shouldBe` 0
+      violations bribeProblem story (ForbidGoal "hero" (lit "has" ["villain", "money"])) `shouldBe` 1
+      violations bribeProblem story (ForbidGoal "hero" (lit "has" ["hero", "money"])) `shouldBe` 0
     it "counts Frames whose goal is outside the whitelist" $ do
       story <- firstStory IPOCL bribeProblem
-      violations story (AllowGoals "villain" [lit "controls" ["villain", "president"]]) `shouldBe` 0
-      violations story (AllowGoals "villain" []) `shouldBe` 1
+      violations bribeProblem story (AllowGoals "villain" [lit "controls" ["villain", "president"]]) `shouldBe` 0
+      violations bribeProblem story (AllowGoals "villain" []) `shouldBe` 1
     it "counts Frames over the cap" $ do
       story <- firstStory IPOCL bribeProblem
-      violations story (MaxFrames "villain" 0) `shouldBe` 1
-      violations story (MaxFrames "villain" 1) `shouldBe` 0
+      violations bribeProblem story (MaxFrames "villain" 0) `shouldBe` 1
+      violations bribeProblem story (MaxFrames "villain" 1) `shouldBe` 0
     it "counts repeated ground Steps" $ do
       story <- firstStory IPOCL tinyProblem
-      violations story NoRepeatSteps `shouldBe` 0
+      violations bribeProblem story NoRepeatSteps `shouldBe` 0
       twice <- repeated
-      violations twice NoRepeatSteps `shouldBe` 1
+      violations bribeProblem twice NoRepeatSteps `shouldBe` 1
     it "does not count the same action with different arguments as a repeat" $ do
       other <- duplicated (map (const (TSym "elsewhere")))
-      violations other NoRepeatSteps `shouldBe` 0
+      violations bribeProblem other NoRepeatSteps `shouldBe` 0
     it "ignores Steps whose arguments are not yet bound" $ do
       unbound <- duplicated (map (const (TVar (Var "later" 99))))
-      violations unbound NoRepeatSteps `shouldBe` 0
+      violations bribeProblem unbound NoRepeatSteps `shouldBe` 0
     forM_
       [ ("forbid-goal", ForbidGoal "hero" (lit "has" ["villain", "money"]))
       , ("allow-goals", AllowGoals "hero" [])
@@ -103,12 +103,12 @@ spec = do
       ]
       $ \(name, rule) -> it ("prunes a hard " <> name <> " and charges a soft one") $ do
         story <- firstStory IPOCL bribeProblem
-        hardViolated [hard rule] story `shouldBe` True
-        softPenalty [hard rule] story `shouldBe` 0
-        hardViolated [soft rule] story `shouldBe` False
-        softPenalty [soft rule] story `shouldBe` 10
+        hardViolated bribeProblem [hard rule] story `shouldBe` True
+        softPenalty bribeProblem [hard rule] story `shouldBe` 0
+        hardViolated bribeProblem [soft rule] story `shouldBe` False
+        softPenalty bribeProblem [soft rule] story `shouldBe` 10
     it "prunes a hard no-repeat-steps and charges a soft one" $ do
       twice <- repeated
-      hardViolated [hard NoRepeatSteps] twice `shouldBe` True
-      hardViolated [soft NoRepeatSteps] twice `shouldBe` False
-      softPenalty [Preference NoRepeatSteps (Soft 7)] twice `shouldBe` 7
+      hardViolated bribeProblem [hard NoRepeatSteps] twice `shouldBe` True
+      hardViolated bribeProblem [soft NoRepeatSteps] twice `shouldBe` False
+      softPenalty bribeProblem [Preference NoRepeatSteps (Soft 7)] twice `shouldBe` 7

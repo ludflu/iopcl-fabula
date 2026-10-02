@@ -342,6 +342,12 @@ Preferences are declared in the problem file. Each one is either **hard**, meani
 - `forbid-goal c L` penalises or prunes a Frame of `c` with that Character goal.
 - `max-frames c n` penalises the Frames beyond `n` for Character `c`.
 - `no-repeat-steps` penalises two Steps with the same ground action.
+- `third-rail` penalises each Step with no path, through causal and motivation links, to the Protagonist's arc. The arc is the Steps in the Protagonist's Intervals, the Motivating steps of the Protagonist's Frames, and every Realization of a Protagonist Misbelief. The goal Step is not in the arc.
+- `serves-protagonist c` penalises each Frame of `c` whose final Step has no such path.
+
+Both relevance rules need a Protagonist. Unlike the other rules, their counts can **decrease**: a Step gains outgoing links when it is reused as an establisher, so a Step with no path now may get one later. The soft forms charge for the paths missing now, which makes them a heuristic estimate rather than a lower bound. The hard forms never prune partial plans. They are checked only at the goal test, where a complete plan that breaks one is a dead end.
+
+The validator lint "an internal change must lead to action" (`IPOCL.Lint.planWarnings`) warns about a Realization, or a Step that gives a Character an Intention, with no outgoing causal or motivation link to a later Step in which that Character is an Actor. It never rejects a plan.
 
 Aladdin's paper heuristic becomes the preferences above. Its "marry needs two frames" rule is not needed, because the
 joint-action rule (§2.1) already enforces it.

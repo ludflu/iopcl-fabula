@@ -196,6 +196,8 @@ genPreference = Preference <$> rule <*> strength
         , ForbidGoal <$> who <*> genLiteral [] 2
         , MaxFrames <$> who <*> chooseInt (0, 10)
         , pure NoRepeatSteps
+        , pure ThirdRail
+        , ServesProtagonist <$> who
         ]
     strength = oneof [pure Hard, Soft <$> chooseInt (0, 10000)]
 

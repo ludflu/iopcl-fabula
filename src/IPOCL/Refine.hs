@@ -54,7 +54,7 @@ mkEnvWith mode p gas =
     , envActions = gas
     , envEffectIndex = Map.fromListWith (flip (++)) [((litPositive e, atomPredicate (litAtom e)), [(g, e)]) | g <- gas, e <- gaEff g]
     , envInit = problemInit p
-    , envPrune = hardViolated (problemPreferences p)
+    , envPrune = hardViolated p (problemPreferences p)
     }
 
 data Child = Child {childPlan :: !Plan, childReason :: !Text}
@@ -62,7 +62,8 @@ data Child = Child {childPlan :: !Plan, childReason :: !Text}
 data Expansion
   = Solution
   | DeadEnd !(Maybe Flaw)
-  -- ^ The flaw that cannot be repaired, or 'Nothing' when only Orphans remain.
+  -- ^ The flaw that cannot be repaired, or 'Nothing' for a flawless plan with
+  -- Orphans or a broken hard relevance preference.
   | Refined !Flaw ![Child]
 
 -- | All flaws of a plan: threats first, then the rest in tie-break order.
@@ -86,6 +87,7 @@ expand :: Env -> Plan -> Expansion
 expand env plan = case flaws env plan of
   []
     | envMode env == IPOCL && not (null (orphans plan)) -> DeadEnd Nothing
+    | finalViolated (envProblem env) (problemPreferences (envProblem env)) plan -> DeadEnd Nothing
     | otherwise -> Solution
   f : _ | isThreat f -> result f (refine env plan f)
   fs -> case sortOn fst [((estimate fl, i), fl) | (i, fl) <- zip [0 :: Int ..] fs] of

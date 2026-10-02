@@ -47,6 +47,9 @@ checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPrefe
       ForbidGoal c _ -> unknown c
       MaxFrames c _ -> unknown c
       NoRepeatSteps -> []
+      ThirdRail -> needsProtagonist "third-rail"
+      ServesProtagonist c -> unknown c ++ needsProtagonist "serves-protagonist"
+    needsProtagonist n = ["preference " <> n <> " needs a protagonist" | Nothing <- [problemProtagonist p]]
     checkRequired (RequiredFrame c g) =
       ["required frame names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]
         ++ ["required frame goal " <> prettyLiteral g <> " must be ground" | not (isGroundLiteral g)]

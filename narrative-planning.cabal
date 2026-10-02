@@ -91,6 +91,7 @@ test-suite spec
         NarrateSpec
         RequiredSpec
         InnerStorySpec
+        RelevanceSpec
     build-depends:
         base,
         containers,

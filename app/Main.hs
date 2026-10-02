@@ -122,6 +122,7 @@ run p opts = do
     Just file -> withFile file WriteMode $ \h -> solve cfg {cfgTrace = Just (TIO.hPutStr h . formatEvent)} p
   forM_ (zip [1 :: Int ..] (resultStories r)) $ \(i, plan) -> do
     TIO.putStrLn ("Story " <> T.pack (show i))
+    mapM_ (TIO.hPutStrLn stderr . (("warning: Story " <> T.pack (show i) <> ": ") <>)) (planWarnings p plan)
     TIO.putStr (renderPlan plan)
     when (optNarrate opts) $ do
       TIO.putStrLn "Narration:"
