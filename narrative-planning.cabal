@@ -94,6 +94,7 @@ test-suite spec
         RelevanceSpec
         BackstorySpec
         FailedSpec
+        TickingSpec
     build-depends:
         base,
         containers,

@@ -1,0 +1,12 @@
+(define (problem ticking-clock-1)
+  (:domain ticking-clock)
+  (:agents ruby)
+  (:init
+    (character ruby)
+    (town millbrook)
+    (calm))
+  (:goal (and (protected millbrook) (not (flooded millbrook))))
+  (:protagonist ruby)
+  (:preferences
+    (third-rail)
+    (no-repeat-steps :hard)))

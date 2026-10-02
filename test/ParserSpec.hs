@@ -105,6 +105,10 @@ spec = do
     it "rejects an unknown character in a preference" $
       check (oneAction (valid <> "    :effect (done ?x)")) (simpleProblem "\n  (:preferences (max-frames villain 2))")
         `shouldFailWith` "p.ipocl:2:17: preference names unknown character villain"
+    it "checks a relevance preference against the declared Protagonist" $ do
+      let domain = oneAction (valid <> "    :effect (done ?x)")
+      check domain (simpleProblem "\n  (:protagonist hero)\n  (:preferences (third-rail))") `shouldSatisfy` either (const False) (const True)
+      check domain (simpleProblem "\n  (:preferences (third-rail))") `shouldFailWith` "p.ipocl:2:17: preference third-rail needs a protagonist"
     it "reports unreadable files" $ do
       r <- loadProblem "domains/no-such-file.ipocl" "domains/tiny-problem.ipocl"
       r `shouldFailWith` "no-such-file"

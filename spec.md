@@ -496,4 +496,4 @@ Each milestone ends with green tests.
 
 - **Failed intentions**: Frames with `fFinal = Nothing`, meaning the Character tried and failed or was pre-empted (§4.6 of the paper). Implemented as blocked attempts from `:fail-first` Required Frames (ADR-0003, ticket 19). Pre-emption is expressed as a blocked attempt whose blocker is the pre-empting Step.
   v1 never creates them, but every function over Frames must handle `Nothing`.
-- **Author goals**: intermediate states the story must pass through (Riedl 2009), added as ordered pseudo-goal Steps.
+- **Author goals**: intermediate states the story must pass through (Riedl 2009), added as ordered pseudo-goal Steps. ADR-0005 recommends building them as Milestones, frameless Required Frames (ticket 20).

@@ -43,7 +43,8 @@ checkedProblem dPath dText pPath pText = do
       prefIssues =
         [ located sp issue
         | (pr, sp) <- zip (problemPreferences p) prefPos
-        , issue <- checkProblem p {problemDomain = d {domainSchemas = []}, problemPreferences = [pr], problemRequiredFrames = [], problemProtagonist = Nothing, problemDesire = Nothing, problemMisbeliefs = [], problemBackstory = []}
+        , issue <- checkProblem p {problemDomain = d {domainSchemas = []}, problemPreferences = [pr]}
+        , "preference " `T.isPrefixOf` issue
         ]
   case schemaIssues ++ prefIssues of
     [] -> Right p
