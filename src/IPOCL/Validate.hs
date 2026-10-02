@@ -81,7 +81,7 @@ validatePlan mode prob plan =
 
     requiredViolations =
       [ "required frame " <> symbolText c <> " wants " <> prettyLiteral g <> " is not in the story"
-      | RequiredFrame c g <- problemRequiredFrames prob
+      | RequiredFrame c g <- requiredFrames prob
       , not (any (fulfilled c g) (planStepList plan))
       ]
     fulfilled c g s =

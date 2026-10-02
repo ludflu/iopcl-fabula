@@ -29,12 +29,17 @@ printProblem Problem {..} =
     ]
       ++ closeLast ("  (:init" : map (("    " <>) . printAtom) (Set.toList problemInit))
       ++ ["  (:goal " <> printConj (map printLiteral problemOutcome) <> ")"]
-      ++ requiredFrames
+      ++ requiredSection
+      ++ innerStory
       ++ preferences
   where
-    requiredFrames
+    requiredSection
       | null problemRequiredFrames = []
       | otherwise = closeLast ("  (:required-frames" : ["    " <> sexp [symbolText c, printLiteral g] | RequiredFrame c g <- problemRequiredFrames])
+    innerStory =
+      ["  " <> sexp [":protagonist", symbolText c] | Just c <- [problemProtagonist]]
+        ++ ["  " <> sexp [":desire", printLiteral g] | Just g <- [problemDesire]]
+        ++ (if null problemMisbeliefs then [] else closeLast ("  (:misbeliefs" : map (("    " <>) . printAtom) problemMisbeliefs))
     preferences
       | null problemPreferences = []
       | otherwise = closeLast ("  (:preferences" : map (("    " <>) . printPreference) problemPreferences)

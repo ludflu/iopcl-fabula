@@ -14,6 +14,7 @@ import IPOCL.Syntax
 checkProblem :: Problem -> [Text]
 checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPreference (problemPreferences p)
     ++ concatMap checkRequired (problemRequiredFrames p)
+    ++ checkInnerStory
   where
     d = problemDomain p
     statics = staticPredicates d
@@ -50,4 +51,23 @@ checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPrefe
       ["required frame names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]
         ++ ["required frame goal " <> prettyLiteral g <> " must be ground" | not (isGroundLiteral g)]
         ++ ["required frame goal may not be an intention" | isIntends g]
+    checkInnerStory =
+      [ "protagonist " <> symbolText c <> " is not a character"
+      | Just c <- [problemProtagonist p]
+      , not (Set.member c (problemCharacters p))
+      ]
+        ++ ["a desire needs a protagonist" | Nothing <- [problemProtagonist p], Just _ <- [problemDesire p]]
+        ++ [ "the protagonist " <> symbolText c <> " does not intend the desire " <> prettyLiteral g <> " in the initial state"
+           | Just c <- [problemProtagonist p]
+           , Just g <- [problemDesire p]
+           , not (Set.member (Atom intendsPredicate [TSym c, TLit g]) (problemInit p))
+           ]
+        ++ concatMap checkMisbelief (problemMisbeliefs p)
+    checkMisbelief m =
+      let name = "misbelief " <> prettyAtom m
+       in [name <> " is not a believes fact" | atomPredicate m /= believesPredicate]
+            ++ [name <> " does not hold in the initial state" | not (Set.member m (problemInit p))]
+            ++ case atomArgs m of
+              TSym c : _ : _ | Set.member c (problemCharacters p) -> []
+              _ -> [name <> ": its first argument must be a character, followed by the belief"]
     unknown c = ["preference names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]

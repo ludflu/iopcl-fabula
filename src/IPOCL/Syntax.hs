@@ -32,6 +32,8 @@ module IPOCL.Syntax
   , PreferenceRule (..)
   , Preference (..)
   , RequiredFrame (..)
+  , requiredFrames
+  , believesPredicate
   , Problem (..)
   , schemaByName
     -- * Embedded DSL
@@ -183,8 +185,20 @@ data Problem = Problem
   , problemOutcome :: ![Literal]
   , problemPreferences :: ![Preference]
   , problemRequiredFrames :: ![RequiredFrame]
+  , problemProtagonist :: !(Maybe Symbol)
+  , problemDesire :: !(Maybe Literal)
+  , problemMisbeliefs :: ![Atom]
   }
   deriving (Eq, Show)
+
+-- | The declared Required Frames plus the Protagonist's Desire.
+requiredFrames :: Problem -> [RequiredFrame]
+requiredFrames p =
+  problemRequiredFrames p ++ [RequiredFrame c g | Just c <- [problemProtagonist p], Just g <- [problemDesire p]]
+
+-- | Misbeliefs are (character, b)@ facts.
+believesPredicate :: Text
+believesPredicate = "believes"
 
 schemaByName :: Domain -> Text -> Maybe ActionSchema
 schemaByName d n = find ((== n) . schemaName) (domainSchemas d)
@@ -250,4 +264,7 @@ problem n d cs i g =
     , problemOutcome = g
     , problemPreferences = []
     , problemRequiredFrames = []
+    , problemProtagonist = Nothing
+    , problemDesire = Nothing
+    , problemMisbeliefs = []
     }

@@ -12,6 +12,7 @@ import Control.Monad (void, when)
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.List (find)
 import Data.Either (lefts)
+import Data.Maybe (listToMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -42,7 +43,7 @@ checkedProblem dPath dText pPath pText = do
       prefIssues =
         [ located sp issue
         | (pr, sp) <- zip (problemPreferences p) prefPos
-        , issue <- checkProblem p {problemDomain = d {domainSchemas = []}, problemPreferences = [pr], problemRequiredFrames = []}
+        , issue <- checkProblem p {problemDomain = d {domainSchemas = []}, problemPreferences = [pr], problemRequiredFrames = [], problemProtagonist = Nothing, problemDesire = Nothing, problemMisbeliefs = []}
         ]
   case schemaIssues ++ prefIssues of
     [] -> Right p
@@ -216,6 +217,9 @@ data Section
   | SGoal [Literal]
   | SPrefs [(Preference, SourcePos)]
   | SRequired [RequiredFrame]
+  | SProtagonist Symbol
+  | SDesire Literal
+  | SMisbeliefs [Atom]
 
 problemFile :: Domain -> P (Problem, [SourcePos])
 problemFile d = between sc eof . parens $ do
@@ -233,6 +237,9 @@ problemFile d = between sc eof . parens $ do
         , keyed "goal" (SGoal <$> conj literalBody)
         , keyed "preferences" (SPrefs <$> many (flip (,) <$> getSourcePos <*> parens preferenceBody))
         , keyed "required-frames" (SRequired <$> many (parens (RequiredFrame . Symbol <$> name <*> literalP)))
+        , keyed "protagonist" (SProtagonist . Symbol <$> name)
+        , keyed "desire" (SDesire <$> literalP)
+        , keyed "misbeliefs" (SMisbeliefs <$> many (parens atomBody))
         ]
   uniqueKeys [(so, k) | (so, k, _) <- sections]
   let prefs = concat [ps | (_, _, SPrefs ps) <- sections]
@@ -245,6 +252,9 @@ problemFile d = between sc eof . parens $ do
         , problemOutcome = concat [gs | (_, _, SGoal gs) <- sections]
         , problemPreferences = map fst prefs
         , problemRequiredFrames = concat [rs | (_, _, SRequired rs) <- sections]
+        , problemProtagonist = listToMaybe [c | (_, _, SProtagonist c) <- sections]
+        , problemDesire = listToMaybe [g | (_, _, SDesire g) <- sections]
+        , problemMisbeliefs = concat [ms | (_, _, SMisbeliefs ms) <- sections]
         }
     , map snd prefs
     )

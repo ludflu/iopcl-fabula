@@ -18,12 +18,13 @@ import IPOCL.Plan
 import IPOCL.Pretty
 import IPOCL.Syntax
 
--- | One line per Step in linearised order. Each Frame's
+-- | The Misbeliefs open the Story, followed by one line per Step in
+-- linearised order; a Realization gets its own line after its Step. Each Frame's
 -- @"<Character> wants <Character goal>."@ line follows its Motivating step,
 -- or opens the Story when the initial state motivates it. The first Step of
 -- each Interval says what it is for, and the final Step says it got there.
 narrate :: Problem -> Plan -> Text
-narrate p plan = T.unlines (concatMap stepLines order)
+narrate p plan = T.unlines (map believes (problemMisbeliefs p) ++ concatMap stepLines order)
   where
     d = problemDomain p
     order = linearize plan
@@ -31,7 +32,19 @@ narrate p plan = T.unlines (concatMap stepLines order)
       | stepId s == goalStepId = []
       | stepId s == initStepId = wants s
       | not (isActionStep s) = []
-      | otherwise = withMotive s (renderStep d plan s) : wants s
+      | otherwise = withMotive s (renderStep d plan s) : realizations s ++ wants s
+    believes m = renderLiteral d (pos m) <> "."
+    realizations s =
+      [ symbolText c <> realized belief <> "."
+      | e <- stepEff s
+      , not (litPositive e)
+      , let m = litAtom (resolveLiteral (planBindings plan) e)
+      , m `elem` problemMisbeliefs p
+      , TSym c : belief : _ <- [atomArgs m]
+      ]
+    realized = \case
+      TLit l -> " realizes " <> renderLiteral d (negateLit l)
+      t -> " no longer believes " <> renderTerm d t
     wants s =
       [ symbolText (frameCharacter f) <> " wants " <> goal (resolvedGoal plan f) <> "."
       | f <- IM.elems (planFrames plan)

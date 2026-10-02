@@ -209,3 +209,6 @@ genProblem =
     <*> small (genLiteral [] 2)
     <*> small genPreference
     <*> small (RequiredFrame . Symbol <$> identifier <*> genLiteral [] 2)
+    <*> oneof [pure Nothing, Just . Symbol <$> identifier]
+    <*> oneof [pure Nothing, Just <$> genLiteral [] 2]
+    <*> small (genAtom [] 2)

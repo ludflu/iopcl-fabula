@@ -90,6 +90,7 @@ test-suite spec
         SmallDomains
         NarrateSpec
         RequiredSpec
+        InnerStorySpec
     build-depends:
         base,
         containers,

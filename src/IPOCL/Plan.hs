@@ -131,7 +131,7 @@ initialPlan p =
   where
     initStep = Step initStepId Nothing [] [] True [] (map pos (Set.toList (problemInit p)))
     goalStep = Step goalStepId Nothing [] [] True (problemOutcome p) []
-    required = zip [2 ..] (problemRequiredFrames p)
+    required = zip [2 ..] (requiredFrames p)
     pseudo = [Step k Nothing [] [] True [rfGoal r] [] | (k, r) <- required]
 
 planStepList :: Plan -> [Step]
