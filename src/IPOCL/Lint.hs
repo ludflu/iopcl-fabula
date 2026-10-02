@@ -37,7 +37,7 @@ problemWarnings p =
     actions = groundActions p
     r = problemReachability p
     unreachable l = isNothing (literalCost r emptyBindings l)
-    requiredWarnings (RequiredFrame c g) =
+    requiredWarnings (RequiredFrame c g _) =
       let name = "required frame " <> symbolText c <> " wants " <> prettyLiteral g
        in [name <> ": the goal is unreachable" | unreachable g]
             ++ [name <> ": " <> symbolText c <> " can never come to want it" | unreachable (pos (Atom intendsPredicate [TSym c, TLit g]))]
@@ -53,6 +53,7 @@ planWarnings :: Problem -> Plan -> [Text]
 planWarnings p plan =
   [ stepLabel plan s <> ": the internal change of " <> symbolText c <> " leads to no action by " <> symbolText c
   | s <- actionSteps plan
+  , not (isUnexecuted plan (stepId s))
   , c <- changed s
   , not (any (actsIn c) (successorsOf (stepId s)))
   ]

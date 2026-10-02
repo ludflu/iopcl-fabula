@@ -76,7 +76,7 @@ sceneCards plan = map card (filter isActionStep order)
             , cardIncoming = sortOn (position . linkSource) [r | r <- refs, linkTarget r == sid]
             , cardConsequence = Set.toList (Set.fromList (concatMap carried out))
             , cardFrames = [f | f <- frames, IS.member sid (frameInterval f)]
-            , cardInternal = [resolveLiteral b e | e <- stepEff s, isIntends e]
+            , cardInternal = [resolveLiteral b e | not (isUnexecuted plan (stepId s)), e <- stepEff s, isIntends e]
             , cardOutgoing = out
             }
 
@@ -86,7 +86,7 @@ renderCards p plan = T.unlines (concat (zipWith render [1 :: Int ..] (sceneCards
   where
     d = problemDomain p
     b = planBindings plan
-    stepText sid = maybe "?" (renderStep d plan) (IM.lookup sid (planSteps plan))
+    stepText sid = maybe "?" (\s -> if isUnexecuted plan sid then renderAttempt d plan s else renderStep d plan s) (IM.lookup sid (planSteps plan))
     clause sid = let t = stepText sid in fromMaybe t (T.stripSuffix "." t)
     source sid = if sid == initStepId then "the initial state" else clause sid
     target sid

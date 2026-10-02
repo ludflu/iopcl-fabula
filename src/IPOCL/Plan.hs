@@ -17,11 +17,14 @@ module IPOCL.Plan
   , stepLabel
   , resolvedGoal
   , frameIntention
+  , frameEnd
+  , isUnexecuted
   , framesOf
   , isMotivator
   , orphans
   ) where
 
+import Control.Applicative ((<|>))
 import Data.IntMap.Strict (IntMap)
 import Data.Ord (Down)
 import Data.IntMap.Strict qualified as IM
@@ -70,9 +73,11 @@ data Frame = Frame
   , frameCharacter :: !Symbol
   , frameGoal :: !Literal
   , frameFinal :: !(Maybe StepId)
-  -- ^ Always 'Just' for now; 'Nothing' is reserved for failed intentions.
+  -- ^ 'Nothing' for a failed Frame (ADR-0003).
   , frameInterval :: !IntSet
   , frameMotivator :: !(Maybe StepId)
+  , frameAttempt :: !(Maybe StepId)
+  -- ^ The attempted Step of a failed Frame.
   }
   deriving (Eq, Show)
 
@@ -94,6 +99,12 @@ data Plan = Plan
   -- the order flaw selection has always seen; changing it changes the search.
   , planRequired :: !(IntMap Symbol)
   , planBackstory :: !(Set Atom)
+  , planUnexecuted :: !IntSet
+  -- ^ Attempted Steps: placed and ordered, but their effects never happen.
+  , planOpenAttempts :: ![StepId]
+  -- ^ Pseudo-steps of ':fail-first' Required Frames still without a failed Frame.
+  , planFailFirst :: !(IntMap FrameId)
+  -- ^ Pseudo-step of a ':fail-first' Required Frame to its failed Frame.
   -- ^ Committed backstory, also added to the init Step's effects.
   -- ^ Pseudo-steps of Required Frames (ADR-0004), with their Character.
   , planNextStep :: !StepId
@@ -107,6 +118,8 @@ data Flaw
   | OpenMotivation !FrameId
   | IntentFlaw !StepId !FrameId
   | IntentionalThreat !FrameId !FrameId
+  | OpenAttempt !StepId
+  -- ^ A ':fail-first' pseudo-step that still needs its failed Frame.
   deriving (Eq, Show)
 
 data Mode = IPOCL | POCL
@@ -127,6 +140,9 @@ initialPlan p =
     , planThreatOrders = Set.empty
     , planThreats = Set.empty
     , planBackstory = Set.empty
+    , planUnexecuted = IS.empty
+    , planOpenAttempts = [k | (k, r) <- required, rfFailFirst r]
+    , planFailFirst = IM.empty
     , planRequired = IM.fromList [(k, rfCharacter r) | (k, r) <- required]
     , planNextStep = 2 + length required
     , planNextFrame = 0
@@ -166,16 +182,26 @@ resolvedGoal plan = resolveLiteral (planBindings plan) . frameGoal
 frameIntention :: Frame -> Literal
 frameIntention f = pos (Atom intendsPredicate [TSym (frameCharacter f), TLit (frameGoal f)])
 
+-- | The final Step, or the attempted Step of a failed Frame: the Step every
+-- other member precedes.
+frameEnd :: Frame -> Maybe StepId
+frameEnd f = frameFinal f <|> frameAttempt f
+
+isUnexecuted :: Plan -> StepId -> Bool
+isUnexecuted plan s = IS.member s (planUnexecuted plan)
+
 framesOf :: Plan -> Symbol -> [Frame]
 framesOf plan c = filter ((== c) . frameCharacter) (IM.elems (planFrames plan))
 
 -- | (Step, Actor) pairs of non-Happening Steps outside every Frame of that Actor.
+-- Only the failed Frame's Character needs a Frame for an attempted Step.
 orphans :: Plan -> [(StepId, Symbol)]
 orphans plan =
   [ (stepId s, a)
   | s <- actionSteps plan
   , not (stepHappening s)
   , a <- stepActors s
+  , not (isUnexecuted plan (stepId s)) || any (\f -> frameAttempt f == Just (stepId s) && frameCharacter f == a) (IM.elems (planFrames plan))
   , not (any (IS.member (stepId s) . frameInterval) (framesOf plan a))
   ]
 

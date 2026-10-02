@@ -14,7 +14,8 @@
     :constraints (and (character ?a) (character ?b))
     :precondition (and (loves ?a ?b) (not (believes ?a (dangerous love))) (neq ?a ?b))
     :effect (reunited ?a ?b)
-    :text "?a tells ?b she loves him.")
+    :text "?a tells ?b she loves him."
+    :attempt-text "?a tries to tell ?b she loves him")
 
   (:action near-loss
     :parameters (?a ?b)

@@ -36,7 +36,7 @@ printProblem Problem {..} =
   where
     requiredSection
       | null problemRequiredFrames = []
-      | otherwise = closeLast ("  (:required-frames" : ["    " <> sexp [symbolText c, printLiteral g] | RequiredFrame c g <- problemRequiredFrames])
+      | otherwise = closeLast ("  (:required-frames" : ["    " <> sexp ([symbolText c, printLiteral g] ++ [":fail-first" | ff]) | RequiredFrame c g ff <- problemRequiredFrames])
     backstory =
       (if null problemBackstory then [] else closeLast ("  (:possible-backstory" : map (("    " <>) . printAtom) problemBackstory))
         ++ [ "  (:backstory-cost :fact " <> showT (bcFact problemBackstoryCost) <> " :intention " <> showT (bcIntention problemBackstoryCost) <> ")"
@@ -62,6 +62,7 @@ printAction ActionSchema {..} =
       ++ [field "precondition" (printConj (map printPrecond schemaPrecondition)) | not (null schemaPrecondition)]
       ++ [field "effect" (printConj (map printLiteral schemaEffect)) | not (null schemaEffect)]
       ++ [field "text" (printString (renderTemplate t)) | Just t <- [schemaText]]
+      ++ [field "attempt-text" (printString (renderTemplate t)) | Just t <- [schemaAttemptText]]
   where
     field k v = "    :" <> k <> " " <> v
 
@@ -80,6 +81,7 @@ printPreference (Preference rule strength) = sexp (ruleParts ++ strengthParts)
       ThirdRail -> ["third-rail"]
       ServesProtagonist c -> ["serves-protagonist", symbolText c]
       MaxBackstory n -> ["max-backstory", showT n]
+      MisbeliefBlocks -> ["misbelief-blocks"]
     strengthParts = case strength of
       Hard -> [":hard"]
       Soft 10 -> []

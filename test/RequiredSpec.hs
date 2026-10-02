@@ -18,7 +18,7 @@ import SmallDomains
 import Test.Hspec
 
 requiring :: [(Symbol, Literal)] -> Problem -> Problem
-requiring rs p = p {problemRequiredFrames = [RequiredFrame c g | (c, g) <- rs]}
+requiring rs p = p {problemRequiredFrames = [RequiredFrame c g False | (c, g) <- rs]}
 
 stories :: Problem -> [Plan]
 stories = resultStories . solvePure defaultSolveConfig {cfgMaxExpanded = Just 5000, cfgCount = 20}

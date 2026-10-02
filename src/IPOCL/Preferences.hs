@@ -29,8 +29,9 @@ violations p plan = \case
   MaxFrames c n -> max 0 (length (framesOf plan c) - n)
   NoRepeatSteps -> length groundSteps - Set.size (Set.fromList groundSteps)
   ThirdRail -> count (not . serves . stepId) (actionSteps plan)
-  ServesProtagonist c -> count (not . maybe True serves . frameFinal) (framesOf plan c)
+  ServesProtagonist c -> count (not . maybe True serves . frameEnd) (framesOf plan c)
   MaxBackstory n -> max 0 (Set.size (planBackstory plan) - n)
+  MisbeliefBlocks -> count (not . blockedByMisbelief) (concatMap attempts (maybe [] (framesOf plan) (problemProtagonist p)))
   where
     b = planBindings plan
     goalsOf c = map (resolvedGoal plan) (framesOf plan c)
@@ -38,10 +39,23 @@ violations p plan = \case
     groundSteps =
       [ (gaIndex g, args)
       | s <- actionSteps plan
+      , not (isUnexecuted plan (stepId s))
       , let args = map (resolve b) (stepArgs s)
       , all (null . termVars) args
       , Just g <- [stepAction s]
       ]
+    -- The link holding an attempted Step's blocked precondition false.
+    attempts f =
+      [ l
+      | Just a <- [frameAttempt f]
+      , Just st <- [IM.lookup a (planSteps plan)]
+      , l <- Set.toList (planLinks plan)
+      , linkTo l == a
+      , resolveLiteral b (negateLit (linkCond l)) `elem` map (resolveLiteral b) (stepPre st)
+      ]
+    blockedByMisbelief l =
+      linkFrom l == initStepId && litPositive (linkCond l) && litAtom (resolveLiteral b (linkCond l)) `elem` ownMisbeliefs
+    ownMisbeliefs = [m | Just c <- [problemProtagonist p], m <- problemMisbeliefs p, take 1 (atomArgs m) == [TSym c]]
     arc = protagonistArc p plan
     reachesArc = reaching plan arc
     serves s = IS.member s reachesArc
@@ -73,7 +87,7 @@ protagonistArc p plan = case problemProtagonist p of
   Just c ->
     let frames = framesOf plan c
         own = [m | m <- problemMisbeliefs p, take 1 (atomArgs m) == [TSym c]]
-        realizes s = any (\e -> not (litPositive e) && litAtom (resolveLiteral (planBindings plan) e) `elem` own) (stepEff s)
+        realizes s = not (isUnexecuted plan (stepId s)) && any (\e -> not (litPositive e) && litAtom (resolveLiteral (planBindings plan) e) `elem` own) (stepEff s)
      in IS.unions (map frameInterval frames)
           <> IS.fromList [m | f <- frames, Just m <- [frameMotivator f], m /= initStepId]
           <> IS.fromList [stepId s | s <- actionSteps plan, realizes s]

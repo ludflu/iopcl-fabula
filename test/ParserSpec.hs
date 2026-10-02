@@ -178,6 +178,7 @@ genSchema = do
     <*> small (genPrecond params)
     <*> small (genLiteral params 2)
     <*> oneof [pure Nothing, Just <$> genTemplate]
+    <*> oneof [pure Nothing, Just <$> genTemplate]
 
 genDomain :: Gen Domain
 genDomain =
@@ -199,6 +200,7 @@ genPreference = Preference <$> rule <*> strength
         , pure ThirdRail
         , ServesProtagonist <$> who
         , MaxBackstory <$> chooseInt (0, 10)
+        , pure MisbeliefBlocks
         ]
     strength = oneof [pure Hard, Soft <$> chooseInt (0, 10000)]
 
@@ -211,7 +213,7 @@ genProblem =
     <*> (Set.fromList <$> small (genAtom [] 2))
     <*> small (genLiteral [] 2)
     <*> small genPreference
-    <*> small (RequiredFrame . Symbol <$> identifier <*> genLiteral [] 2)
+    <*> small (RequiredFrame . Symbol <$> identifier <*> genLiteral [] 2 <*> arbitrary)
     <*> oneof [pure Nothing, Just . Symbol <$> identifier]
     <*> oneof [pure Nothing, Just <$> genLiteral [] 2]
     <*> small (genAtom [] 2)

@@ -10,6 +10,7 @@ import RequiredSpec qualified
 import InnerStorySpec qualified
 import RelevanceSpec qualified
 import BackstorySpec qualified
+import FailedSpec qualified
 import TraceSpec qualified
 import OrderSpec qualified
 import ParserSpec qualified
@@ -38,3 +39,4 @@ main = hspec $ do
   InnerStorySpec.spec
   RelevanceSpec.spec
   BackstorySpec.spec
+  FailedSpec.spec

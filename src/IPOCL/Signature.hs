@@ -112,13 +112,14 @@ instance (Digest a, Digest b, Digest c, Digest d, Digest e, Digest f, Digest g, 
   digest h (a, b, c, d, e, f, g, i, j) = digest h (a, (b, (c, (d, (e, (f, (g, (i, j))))))))
 
 -- | Stories count as different when their ground Steps, their
--- (Character, Character goal) pairs or their backstory differ.
+-- (Character, Character goal) pairs or their backstory differ. Attempted Steps
+-- and failed Frames are marked, so they differ from executed and successful ones.
 type StorySignature = ([Text], Set (Text, Text), Set Atom)
 
 storySignature :: Plan -> StorySignature
 storySignature plan =
-  ( sort (map (stepLabel plan) (actionSteps plan))
-  , Set.fromList [(symbolText (frameCharacter f), prettyLiteral (resolvedGoal plan f)) | f <- IM.elems (planFrames plan)]
+  ( sort [stepLabel plan s <> (if isUnexecuted plan (stepId s) then " (attempt)" else "") | s <- actionSteps plan]
+  , Set.fromList [(symbolText (frameCharacter f), prettyLiteral (resolvedGoal plan f) <> maybe "" (const " (fails)") (frameAttempt f)) | f <- IM.elems (planFrames plan)]
   , planBackstory plan
   )
 

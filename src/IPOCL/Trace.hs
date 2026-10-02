@@ -52,6 +52,7 @@ describeFlaw plan = \case
       <> tshow f
       <> maybe "" (\fr -> ": " <> symbolText (frameCharacter fr) <> " intends " <> showLit (frameGoal fr)) (frame f)
   IntentionalThreat a b -> "intentional threat between frame " <> tshow a <> " and frame " <> tshow b
+  OpenAttempt s -> "open attempt for the fail-first required frame on step " <> tshow s
   where
     frame f = IM.lookup f (planFrames plan)
     showLit = prettyLiteral . resolveLiteral (planBindings plan)

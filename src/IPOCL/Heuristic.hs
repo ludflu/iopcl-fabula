@@ -170,7 +170,8 @@ additiveHeuristic r env plan = do
   motivations <- traverse (\f -> (1 +) <$> literalCost r b (frameIntention f)) unmotivated
   orphanCosts <- traverse orphanCost (intentionalOrphans env plan)
   required <- traverse (\(c, l) -> (1 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym c, TLit l]))) unmetRequired
-  Just (sum opens + sum motivations + sum orphanCosts + sum required + length (planPendingIntent plan) + length threats)
+  attempts <- traverse (\(c, l) -> (2 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym c, TLit l]))) openAttempts
+  Just (sum opens + sum motivations + sum orphanCosts + sum required + sum attempts + length (planPendingIntent plan) + length threats)
   where
     -- Committed backstory is free from now on.
     openCost l
@@ -179,6 +180,15 @@ additiveHeuristic r env plan = do
     b = planBindings plan
     -- The open condition already counts the goal; this is its future Frame's
     -- open motivation.
+    -- An attempted Step plus its failed Frame's motivation.
+    openAttempts =
+      [ (c, l)
+      | envMode env == IPOCL
+      , s <- planOpenAttempts plan
+      , Just c <- [IM.lookup s (planRequired plan)]
+      , Just st <- [IM.lookup s (planSteps plan)]
+      , l <- stepPre st
+      ]
     unmetRequired =
       [ (c, l)
       | envMode env == IPOCL

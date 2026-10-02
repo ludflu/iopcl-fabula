@@ -145,6 +145,8 @@ data ActionSchema = ActionSchema
   , schemaPrecondition :: ![Precond]
   , schemaEffect :: ![Literal]
   , schemaText :: !(Maybe Template)
+  , schemaAttemptText :: !(Maybe Template)
+  -- ^ Narration for a blocked attempt, e.g. @"?a tries to tell ?b she loves him"@.
   }
   deriving (Eq, Show)
 
@@ -174,13 +176,15 @@ data PreferenceRule
   | ThirdRail
   | ServesProtagonist !Symbol
   | MaxBackstory !Int
+  | MisbeliefBlocks
   deriving (Eq, Show)
 
 data Preference = Preference {prefRule :: !PreferenceRule, prefStrength :: !Strength}
   deriving (Eq, Show)
 
--- | A Frame every Story must contain (ADR-0004).
-data RequiredFrame = RequiredFrame {rfCharacter :: !Symbol, rfGoal :: !Literal}
+-- | A Frame every Story must contain (ADR-0004). With 'rfFailFirst', a failed
+-- Frame for the same goal must come first (ADR-0003).
+data RequiredFrame = RequiredFrame {rfCharacter :: !Symbol, rfGoal :: !Literal, rfFailFirst :: !Bool}
   deriving (Eq, Show)
 
 data Problem = Problem
@@ -218,7 +222,12 @@ backstoryCost p a
 -- | The declared Required Frames plus the Protagonist's Desire.
 requiredFrames :: Problem -> [RequiredFrame]
 requiredFrames p =
-  problemRequiredFrames p ++ [RequiredFrame c g | Just c <- [problemProtagonist p], Just g <- [problemDesire p]]
+  problemRequiredFrames p
+    ++ [ RequiredFrame c g False
+       | Just c <- [problemProtagonist p]
+       , Just g <- [problemDesire p]
+       , not (any (\r -> rfCharacter r == c && rfGoal r == g) (problemRequiredFrames p))
+       ]
 
 -- | Misbeliefs are (character, b)@ facts.
 believesPredicate :: Text
@@ -261,6 +270,7 @@ schema n ps =
     , schemaPrecondition = []
     , schemaEffect = []
     , schemaText = Nothing
+    , schemaAttemptText = Nothing
     }
 
 -- | Split @"?slayer slays ?monster."@ into text and parameter parts.

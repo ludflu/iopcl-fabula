@@ -53,7 +53,7 @@ spec = describe "Protagonist, Desire and Misbeliefs" $ do
       problemProtagonist p `shouldBe` Just "ruby"
       problemDesire p `shouldBe` Just (lit "reunited" ["ruby", "henry"])
       problemMisbeliefs p `shouldBe` [belief]
-      requiredFrames p `shouldBe` [RequiredFrame "ruby" (lit "reunited" ["ruby", "henry"])]
+      requiredFrames p `shouldBe` [RequiredFrame "ruby" (lit "reunited" ["ruby", "henry"]) False]
       parseProblem (problemDomain p) "p" (printProblem p) `shouldBe` Right p
 
   describe "domain checks" $ do

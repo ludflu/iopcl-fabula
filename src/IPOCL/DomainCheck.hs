@@ -51,8 +51,9 @@ checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPrefe
       ThirdRail -> needsProtagonist "third-rail"
       ServesProtagonist c -> unknown c ++ needsProtagonist "serves-protagonist"
       MaxBackstory _ -> []
+      MisbeliefBlocks -> needsProtagonist "misbelief-blocks"
     needsProtagonist n = ["preference " <> n <> " needs a protagonist" | Nothing <- [problemProtagonist p]]
-    checkRequired (RequiredFrame c g) =
+    checkRequired (RequiredFrame c g _) =
       ["required frame names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]
         ++ ["required frame goal " <> prettyLiteral g <> " must be ground" | not (isGroundLiteral g)]
         ++ ["required frame goal may not be an intention" | isIntends g]

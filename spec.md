@@ -203,7 +203,7 @@ data Step = Step { stepId :: StepId, ground :: Maybe GroundAction   -- Nothing f
                  , stepActors :: [Symbol], stepPre :: [Precond], stepEff :: [Literal], happening :: Bool }
 data CausalLink = CausalLink { clFrom :: StepId, clCond :: Literal, clTo :: StepId }
 data Frame = Frame { fId :: FrameId, fChar :: Symbol, fGoal :: Literal
-                   , fFinal :: Maybe StepId          -- always Just in v1; Nothing reserved for failed intentions (§9)
+                   , fFinal :: Maybe StepId          -- Nothing for a failed Frame (ADR-0003)
                    , fInterval :: IntSet, fMotivator :: Maybe StepId }
 data Flaw = OpenCond StepId Literal | CausalThreat StepId CausalLink | OpenMotivation FrameId
           | IntentFlaw StepId FrameId | IntentionalThreat FrameId FrameId
@@ -420,7 +420,7 @@ narrative-planning builtin tower|bribe|aladdin [solve options]
 | # | Issue | Decision |
 |---|---|---|
 | D1 | Fig. 5 3a says "the character of `s_add`" (singular), but §4.5 gives `(e+1)^a` branching. | Each Actor chooses an effect or `nil` independently. |
-| D2 | What "intentional" means for joint actions. | Every Actor needs its own Frame that contains the Step. |
+| D2 | What "intentional" means for joint actions. | Every Actor needs its own Frame that contains the Step. The exception is an attempted Step (ADR-0003): only the failed Frame's Character needs a Frame for it, because the attempt never happens. |
 | D3 | Can Happenings be in Intervals? | Never. They get no frame discovery and no intent flaws. |
 | D4 | Figs. 1 and 5 resolve threats inside each refinement, while the A.3 trace treats threats as flaws. | Threats are agenda flaws. |
 | D5 | Condition 2 uses inconsistent indices, and discovery only runs for `s_add`. | Candidates are recomputed after every refinement (§4.6, ADR-0002). |
@@ -432,7 +432,7 @@ narrative-planning builtin tower|bribe|aladdin [solve options]
 | D11 | Can a reused Step become the final Step of a new Frame? | No, as in the paper. This keeps the search systematic. |
 | D12 | Fig. 15 has `married(K,J)` where the domain uses `married-to`. | Treated as a notational slip. |
 | D13 | Can an `intends(...)` effect or a negative literal be a Character goal? | Yes. |
-| D14 | Duplicate Frames with the same Character and Character goal. | Pruned (§4.6). |
+| D14 | Duplicate Frames with the same Character and Character goal. | Pruned (§4.6). The exception is one failed Frame ordered entirely before a successful Frame for the same goal, from a `:fail-first` Required Frame (ADR-0003). A second failed Frame for that goal is pruned. |
 | D15 | Init and goal Steps. | They have no Actors and are never Orphans. |
 
 ## 6. Milestones
@@ -494,6 +494,6 @@ Each milestone ends with green tests.
 
 ## 9. Planned for Later Versions (design must not preclude)
 
-- **Failed intentions**: Frames with `fFinal = Nothing`, meaning the Character tried and failed or was pre-empted (§4.6 of the paper).
+- **Failed intentions**: Frames with `fFinal = Nothing`, meaning the Character tried and failed or was pre-empted (§4.6 of the paper). Implemented as blocked attempts from `:fail-first` Required Frames (ADR-0003, ticket 19). Pre-emption is expressed as a blocked attempt whose blocker is the pre-empting Step.
   v1 never creates them, but every function over Frames must handle `Nothing`.
 - **Author goals**: intermediate states the story must pass through (Riedl 2009), added as ordered pseudo-goal Steps.

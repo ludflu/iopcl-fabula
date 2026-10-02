@@ -2,15 +2,17 @@
 module IPOCL.Narrate
   ( narrate
   , renderStep
+  , renderAttempt
   , renderLiteral
   ) where
 
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
-import Data.List (find)
+import Data.List (find, nub)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Set qualified as Set
 import IPOCL.Bindings
 import IPOCL.Ground
 import IPOCL.Linearize
@@ -32,6 +34,7 @@ narrate p plan = T.unlines (map believes (problemMisbeliefs p) ++ concatMap step
       | stepId s == goalStepId = []
       | stepId s == initStepId = wants s
       | not (isActionStep s) = []
+      | isUnexecuted plan (stepId s) = renderAttempt d plan s : wants s
       | otherwise = withMotive s (renderStep d plan s) : realizations s ++ wants s
     believes m = renderLiteral d (pos m) <> "."
     realizations s =
@@ -45,11 +48,13 @@ narrate p plan = T.unlines (map believes (problemMisbeliefs p) ++ concatMap step
     realized = \case
       TLit l -> " realizes " <> renderLiteral d (negateLit l)
       t -> " no longer believes " <> renderTerm d t
+    -- A failed Frame and its successful retry share one Intention.
     wants s =
-      [ symbolText (frameCharacter f) <> " wants " <> goal (resolvedGoal plan f) <> "."
-      | f <- IM.elems (planFrames plan)
-      , frameMotivator f == Just (stepId s)
-      ]
+      nub
+        [ symbolText (frameCharacter f) <> " wants " <> goal (resolvedGoal plan f) <> "."
+        | f <- IM.elems (planFrames plan)
+        , frameMotivator f == Just (stepId s)
+        ]
     goal l
       | litPositive l = renderLiteral d l
       | otherwise = "it not to be the case that " <> renderLiteral d (negateLit l)
@@ -79,6 +84,28 @@ renderStep d plan s = case stepAction s of
      in case schemaText sch of
           Just t -> fillTemplate (zip (map varName (schemaParams sch)) args) t
           Nothing -> T.unwords (schemaName sch : args)
+
+-- | A blocked attempt: @"<attempt text>, but <blocker>."@. The attempt text
+-- comes from the schema's @:attempt-text@, or is @"<Character> tries to name args"@.
+renderAttempt :: Domain -> Plan -> Step -> Text
+renderAttempt d plan s = tries <> but <> "."
+  where
+    b = planBindings plan
+    args = map (renderTerm d . resolve b) (stepArgs s)
+    who = maybe "?" (symbolText . frameCharacter) (find ((== Just (stepId s)) . frameAttempt) (IM.elems (planFrames plan)))
+    tries = case gaSchema <$> stepAction s of
+      Just sch
+        | Just t <- schemaAttemptText sch -> fillTemplate (zip (map varName (schemaParams sch)) args) t
+        | otherwise -> who <> " tries to " <> T.unwords (schemaName sch : args)
+      Nothing -> who <> " tries"
+    pres = map (resolveLiteral b) (stepPre s)
+    blockers =
+      [ renderLiteral d (resolveLiteral b (linkCond l))
+      | l <- Set.toList (planLinks plan)
+      , linkTo l == stepId s
+      , resolveLiteral b (negateLit (linkCond l)) `elem` pres
+      ]
+    but = if null blockers then "" else ", but " <> T.intercalate " and " blockers
 
 -- | A literal through the domain's predicate templates, falling back to its
 -- printed form.

@@ -158,6 +158,7 @@ data Field
   | FPre [Precond]
   | FEff [Literal]
   | FText Template
+  | FAttemptText Template
 
 domainFile :: P (Domain, [(Text, SourcePos)])
 domainFile = between sc eof . parens $ do
@@ -196,6 +197,7 @@ action = do
         , keyed "precondition" (FPre <$> conj precondBody)
         , keyed "effect" (FEff <$> conj literalBody)
         , keyed "text" (FText . template <$> stringLit)
+        , keyed "attempt-text" (FAttemptText . template <$> stringLit)
         ]
   uniqueKeys [(fo, k) | (fo, k, _) <- fields]
   when (null [() | (_, _, FParams _) <- fields]) $ failAt o ("action " <> n <> " has no :parameters")
@@ -207,6 +209,7 @@ action = do
         FPre ps -> s {schemaPrecondition = ps}
         FEff es -> s {schemaEffect = es}
         FText t -> s {schemaText = Just t}
+        FAttemptText t -> s {schemaAttemptText = Just t}
   pure (foldl' setField (schema n []) [f | (_, _, f) <- fields], sp)
 
 -- Problems ----------------------------------------------------------------
@@ -238,7 +241,7 @@ problemFile d = between sc eof . parens $ do
         , keyed "init" (SInit <$> many (parens atomBody))
         , keyed "goal" (SGoal <$> conj literalBody)
         , keyed "preferences" (SPrefs <$> many (flip (,) <$> getSourcePos <*> parens preferenceBody))
-        , keyed "required-frames" (SRequired <$> many (parens (RequiredFrame . Symbol <$> name <*> literalP)))
+        , keyed "required-frames" (SRequired <$> many (parens (RequiredFrame . Symbol <$> name <*> literalP <*> (True <$ keyword ":fail-first" <|> pure False))))
         , keyed "protagonist" (SProtagonist . Symbol <$> name)
         , keyed "desire" (SDesire <$> literalP)
         , keyed "misbeliefs" (SMisbeliefs <$> many (parens atomBody))
@@ -278,6 +281,7 @@ preferenceBody = Preference <$> rule <*> strength
         , ThirdRail <$ keyword "third-rail"
         , keyword "serves-protagonist" *> (ServesProtagonist <$> character)
         , keyword "max-backstory" *> (MaxBackstory <$> integer)
+        , MisbeliefBlocks <$ keyword "misbelief-blocks"
         ]
     strength =
       (Hard <$ keyword ":hard")
