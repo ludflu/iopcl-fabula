@@ -18,6 +18,31 @@ _Avoid_: Agent, performer
 A world-state fact `intends(character, literal)` stating that it is reasonable for that Character to have that goal.
 _Avoid_: Using "intention" for a Frame
 
+### Inner story
+
+**Protagonist**:
+The one Character whose inner struggle the story is about, declared in the problem file.
+_Avoid_: Hero, main character
+
+**Desire**:
+The Character goal the Protagonist enters the story wanting, given by an Intention in the initial state; every Story contains a Frame of the Protagonist for it.
+_Avoid_: Want, need
+
+**Misbelief**:
+A belief `believes(character, b)` that some Character holds at the start of the story and that stands in the way of what they want. Any Character may hold one; the Protagonist's Misbeliefs are the ones that block the Desire.
+_Avoid_: Flaw (that is a planning flaw), wound, lie
+
+**Realization**:
+A Step, intentional or a Happening, one of whose effects negates a Misbelief.
+_Avoid_: Epiphany, aha (fine in prose)
+
+**Internal change**:
+A Realization, or a Step that gives a Character an Intention.
+
+**Backstory assumption**:
+A fact from the problem's possible-backstory list that the plan commits to holding in the initial state, because some Step needed it.
+_Avoid_: Assumption (unqualified)
+
 ### Goals
 
 **Outcome**:
@@ -48,6 +73,16 @@ _Avoid_: Frame of commitment (long form is fine in prose), intention, interval
 **Interval**:
 The set of Steps belonging to one Frame.
 _Avoid_: Interval of intentionality (long form is fine in prose)
+
+**Required Frame**:
+A Character–Character goal pair, named by the author, that every Story must contain as a Frame. The Character goal need only become true at some point, not hold at the end.
+
+**Failed Frame**:
+A Frame whose Character goal is never achieved, because its attempted Step was blocked.
+_Avoid_: Failed intention (fine in prose), abandoned frame
+
+**Attempted step**:
+The Step a failed Frame's Character tries but cannot perform, because one of its preconditions is false at that point. It appears in the Story but has no effects.
 
 **Motivating step**:
 The Step (or the initial state) whose effect gives a Frame's Character the Intention for that Frame's Character goal.

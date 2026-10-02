@@ -28,10 +28,14 @@ soft r = Preference r (Soft 10)
 
 -- | A solved plan with its one Step duplicated.
 repeated :: IO Plan
-repeated = do
+repeated = duplicated id
+
+-- | A solved plan with a copy of its one Step whose arguments are rewritten.
+duplicated :: ([Term] -> [Term]) -> IO Plan
+duplicated f = do
   plan <- firstStory IPOCL tinyProblem
   let s = head' (actionSteps plan)
-      s' = s {stepId = planNextStep plan}
+      s' = s {stepId = planNextStep plan, stepArgs = f (stepArgs s)}
   pure plan {planSteps = IM.insert (stepId s') s' (planSteps plan), planNextStep = planNextStep plan + 1}
   where
     head' = \case
@@ -86,6 +90,12 @@ spec = do
       violations story NoRepeatSteps `shouldBe` 0
       twice <- repeated
       violations twice NoRepeatSteps `shouldBe` 1
+    it "does not count the same action with different arguments as a repeat" $ do
+      other <- duplicated (map (const (TSym "elsewhere")))
+      violations other NoRepeatSteps `shouldBe` 0
+    it "ignores Steps whose arguments are not yet bound" $ do
+      unbound <- duplicated (map (const (TVar (Var "later" 99))))
+      violations unbound NoRepeatSteps `shouldBe` 0
     forM_
       [ ("forbid-goal", ForbidGoal "hero" (lit "has" ["villain", "money"]))
       , ("allow-goals", AllowGoals "hero" [])

@@ -5,9 +5,10 @@ module IPOCL.Preferences
   , softPenalty
   ) where
 
-import Data.List (nub)
 import Data.Maybe (isJust)
+import Data.Set qualified as Set
 import IPOCL.Bindings
+import IPOCL.Ground
 import IPOCL.Plan
 import IPOCL.Syntax
 
@@ -18,15 +19,17 @@ violations plan = \case
   AllowGoals c allowed -> count (\g -> not (any (isJust . unifyLiterals b g) allowed)) (goalsOf c)
   ForbidGoal c l -> count (== l) (goalsOf c)
   MaxFrames c n -> max 0 (length (framesOf plan c) - n)
-  NoRepeatSteps -> length groundSteps - length (nub groundSteps)
+  NoRepeatSteps -> length groundSteps - Set.size (Set.fromList groundSteps)
   where
     b = planBindings plan
     goalsOf c = map (resolvedGoal plan) (framesOf plan c)
     count f = length . filter f
     groundSteps =
-      [ stepLabel plan s
+      [ (gaIndex g, args)
       | s <- actionSteps plan
-      , all (null . termVars . resolve b) (stepArgs s)
+      , let args = map (resolve b) (stepArgs s)
+      , all (null . termVars) args
+      , Just g <- [stepAction s]
       ]
 
 hardViolated :: [Preference] -> Plan -> Bool

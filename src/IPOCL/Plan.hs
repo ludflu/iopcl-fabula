@@ -22,6 +22,7 @@ module IPOCL.Plan
   ) where
 
 import Data.IntMap.Strict (IntMap)
+import Data.Ord (Down)
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IS
@@ -86,6 +87,9 @@ data Plan = Plan
   , planProposedIntent :: !(Set (StepId, FrameId))
   , planThreatOrders :: !(Set (StepId, StepId))
   -- ^ Orderings added by promotion or demotion, kept for rendering.
+  , planThreats :: !(Set (CausalLink, Down StepId))
+  -- ^ Causal threats as (link, clobbering Step). The descending Step order is
+  -- the order flaw selection has always seen; changing it changes the search.
   , planNextStep :: !StepId
   , planNextFrame :: !FrameId
   }
@@ -115,6 +119,7 @@ initialPlan p =
     , planPendingIntent = []
     , planProposedIntent = Set.empty
     , planThreatOrders = Set.empty
+    , planThreats = Set.empty
     , planNextStep = 2
     , planNextFrame = 0
     }

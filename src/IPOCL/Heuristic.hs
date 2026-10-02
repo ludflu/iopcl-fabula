@@ -4,6 +4,10 @@ module IPOCL.Heuristic
   , reachability
   , reachableActions
   , literalCost
+  , uncachedLiteralCost
+  , wantedLiterals
+  , intentionCost
+  , uncachedIntentionCost
   , HeuristicChoice (..)
   , heuristic
   , additiveHeuristic
@@ -11,9 +15,10 @@ module IPOCL.Heuristic
   ) where
 
 import Data.IntMap.Strict qualified as IM
+import Data.Map.Lazy qualified as LazyMap
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (isJust, isNothing)
+import Data.Maybe (fromMaybe, isJust, isNothing)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -31,11 +36,18 @@ data Reachability = Reachability
   -- ^ Facts and lifted effect patterns, for literals that are not ground.
   , rInit :: !(Set Atom)
   , rActions :: ![GroundAction]
+  , rGroundCosts :: Map Literal (Maybe Int)
+  -- ^ Lazily memoised 'uncachedLiteralCost' for the ground literals plans ask for.
+  , rIntentionCosts :: Map Symbol (Maybe Int)
+  -- ^ Lazily memoised cheapest Intention per Actor.
   }
 
 reachability :: Set Atom -> [GroundAction] -> Reachability
-reachability initAtoms actions = Reachability facts byPred initAtoms reachable
+reachability initAtoms actions = r
   where
+    r = Reachability facts byPred initAtoms reachable groundCosts intentionCosts
+    groundCosts = LazyMap.fromSet (uncachedLiteralCost r) (Set.fromList (wantedLiterals reachable))
+    intentionCosts = LazyMap.fromSet (uncachedIntentionCost r) (Set.fromList (concatMap gaActors reachable))
     initFacts = Map.fromList [(pos a, 0) | a <- Set.toList initAtoms]
     (facts, patterns, actionCost) = fixpoint initFacts Map.empty
     reachable = [g | g <- actions, Map.member (gaIndex g) actionCost]
@@ -80,9 +92,29 @@ minimumMaybe xs = Just (minimum xs)
 reachableActions :: Reachability -> [GroundAction]
 reachableActions = rActions
 
+-- | Ground literals a plan can ask for: preconditions of reachable actions,
+-- and the Intentions behind Frames whose Character goal is a ground effect.
+wantedLiterals :: [GroundAction] -> [Literal]
+wantedLiterals gas =
+  [l | g <- gas, l <- gaPre g, isGroundLiteral l]
+    ++ [ pos (Atom intendsPredicate [TSym a, TLit e])
+       | g <- gas
+       , a <- gaActors g
+       , e <- gaEff g
+       , isGroundLiteral e
+       ]
+
 -- | Estimated cost of making a literal true; 'Nothing' if it is unreachable.
 literalCost :: Reachability -> Bindings -> Literal -> Maybe Int
 literalCost r b l0
+  | isGroundLiteral l = fromMaybe (uncachedLiteralCost r l) (Map.lookup l (rGroundCosts r))
+  | otherwise = uncachedLiteralCost r l
+  where
+    l = resolveLiteral b l0
+
+-- | 'literalCost' for a resolved literal, without the memo table.
+uncachedLiteralCost :: Reachability -> Literal -> Maybe Int
+uncachedLiteralCost r l
   | isGroundLiteral l =
       minimumMaybe
         ( [0 | not (litPositive l), not (Set.member (litAtom l) (rInit r))]
@@ -95,8 +127,14 @@ literalCost r b l0
             ++ [c | (p, c) <- candidates, isJust (unifyLiterals emptyBindings p l)]
         )
   where
-    l = resolveLiteral b l0
     candidates = Map.findWithDefault [] (litPositive l, atomPredicate (litAtom l)) (rByPredicate r)
+
+-- | Cheapest cost of giving an Actor any Intention at all.
+intentionCost :: Reachability -> Symbol -> Maybe Int
+intentionCost r a = fromMaybe (uncachedIntentionCost r a) (Map.lookup a (rIntentionCosts r))
+
+uncachedIntentionCost :: Reachability -> Symbol -> Maybe Int
+uncachedIntentionCost r a = uncachedLiteralCost r (pos (Atom intendsPredicate [TSym a, TVar (Var "anything" (-1))]))
 
 data HeuristicChoice = Additive | Paper | Blind
   deriving (Eq, Show)
@@ -123,7 +161,7 @@ additiveHeuristic r env plan = do
     -- decision from joining; any other still needs a Frame it has not got.
     orphanCost (s, a)
       | any (\(s', c) -> s' == s && fmap frameCharacter (IM.lookup c (planFrames plan)) == Just a) (planPendingIntent plan) = Just 1
-      | otherwise = (2 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym a, TVar (Var "anything" (-1))]))
+      | otherwise = (2 +) <$> intentionCost r a
 
 -- | Orphans only exist when planning for intentionality.
 intentionalOrphans :: Env -> Plan -> [(StepId, Symbol)]

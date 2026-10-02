@@ -6,11 +6,13 @@ import FetchDomain
 import Helpers
 import IPOCL
 import IPOCL.Bindings
+import IPOCL.Domains.Aladdin
 import IPOCL.Domains.Tiny
 import IPOCL.Domains.Tower
 import IPOCL.Order
 import IPOCL.Refine
 import IPOCL.Search
+import IPOCL.Syntax (Problem, problemName)
 import Test.Hspec hiding (before)
 
 planIsConsistent :: Plan -> Expectation
@@ -19,6 +21,24 @@ planIsConsistent plan = do
       b = planBindings plan
   [(x, y) | (x, y) <- orderPairs o, before o y x] `shouldBe` []
   [(x, y) | (x, y) <- neqConstraints b, necessarilyEqual b x y] `shouldBe` []
+
+-- | Along a sampled search path, every visited plan and each of its children
+-- has exactly the from-scratch threats, in the same order.
+threatsAgree :: Mode -> Problem -> Expectation
+threatsAgree m p = do
+  let name = (m, problemName p)
+  [() | plan <- sampled, causalThreats plan /= causalThreatsFromScratch plan] `shouldBe` []
+  (name, all (null . causalThreatsFromScratch) sampled) `shouldBe` (name, False)
+  where
+    sampled =
+      [ plan
+      | parent <- take 1500 [evPlan e | e@Visited {} <- search env defaultSearchConfig (initialPlan p)]
+      , plan <- parent : children parent
+      ]
+    env = mkEnv m p
+    children plan = case expand env plan of
+      Refined _ cs -> map childPlan cs
+      _ -> []
 
 spec :: Spec
 spec = do
@@ -32,6 +52,8 @@ spec = do
       plan `shouldBeValidFor` (POCL, towerProblem)
     it "never visits a plan with cyclic orderings or inconsistent bindings" $
       mapM_ planIsConsistent (take 2000 [evPlan e | e <- search (mkEnv POCL towerProblem) defaultSearchConfig (initialPlan towerProblem)])
+    it "keeps recorded threats equal to threats computed from scratch" $
+      mapM_ (uncurry threatsAgree) [(POCL, towerProblem), (IPOCL, towerProblem), (IPOCL, motivatedTowerProblem), (IPOCL, aladdinProblem)]
     it "returns only valid plans across several solutions" $ do
       let r = solvePure defaultSolveConfig {cfgMode = POCL, cfgCount = 5, cfgMaxExpanded = Just 20000} towerProblem
       length (resultStories r) `shouldBe` 5
