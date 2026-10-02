@@ -6,6 +6,8 @@ module IPOCL.Refine
   , Child (..)
   , Expansion (..)
   , flaws
+  , causalThreats
+  , causalThreatsFromScratch
   , isThreat
   , expand
   , refine
@@ -18,6 +20,7 @@ import Data.List (nub, sortOn)
 import Data.Maybe (isJust, isNothing)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Ord (Down (..))
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -147,24 +150,56 @@ resolveIntentionalThreat env plan a b =
 
 -- Causal threats ------------------------------------------------------------
 
--- | Steps that may fall inside a causal link and assert the negation of its condition.
+-- | The plan's causal threats, as kept up to date by 'withLinkThreats',
+-- 'withStepThreats' and 'recheckThreats'.
 causalThreats :: Plan -> [Flaw]
-causalThreats plan =
+causalThreats plan = [CausalThreat t l | (l, Down t) <- Set.toList (planThreats plan)]
+
+-- | Steps that may fall inside a causal link and assert the negation of its
+-- condition, computed from scratch: the oracle for 'causalThreats'.
+causalThreatsFromScratch :: Plan -> [Flaw]
+causalThreatsFromScratch plan =
   [ CausalThreat (stepId t) l
   | l <- Set.toList (planLinks plan)
   , let clobber = negateLit (linkCond l)
   , t <- Map.findWithDefault [] (litKey clobber) clobberers
-  , stepId t /= linkFrom l
-  , stepId t /= linkTo l
-  , possiblyBefore o (linkFrom l) (stepId t)
-  , possiblyBefore o (stepId t) (linkTo l)
-  , any (\e -> litKey e == litKey clobber && isJust (unifyLiterals b e clobber)) (stepEff t)
+  , threatens plan l t
   ]
   where
-    o = planOrder plan
-    b = planBindings plan
-    litKey l = (litPositive l, atomPredicate (litAtom l))
     clobberers = Map.fromListWith (++) [(k, [t]) | t <- planStepList plan, k <- nub (map litKey (stepEff t))]
+
+litKey :: Literal -> (Bool, Text)
+litKey l = (litPositive l, atomPredicate (litAtom l))
+
+-- | @t@ may fall inside @l@ and assert the negation of its condition. Adding
+-- orderings or bindings can only make this false, never true.
+threatens :: Plan -> CausalLink -> Step -> Bool
+threatens plan l t =
+  stepId t /= linkFrom l
+    && stepId t /= linkTo l
+    && possiblyBefore o (linkFrom l) (stepId t)
+    && possiblyBefore o (stepId t) (linkTo l)
+    && any (\e -> litKey e == litKey clobber && isJust (unifyLiterals (planBindings plan) e clobber)) (stepEff t)
+  where
+    o = planOrder plan
+    clobber = negateLit (linkCond l)
+
+-- | Record the threats to a newly added link.
+withLinkThreats :: CausalLink -> Plan -> Plan
+withLinkThreats l plan =
+  plan {planThreats = foldr Set.insert (planThreats plan) [(l, Down (stepId t)) | t <- planStepList plan, threatens plan l t]}
+
+-- | Record the threats a newly added Step poses to existing links.
+withStepThreats :: StepId -> Plan -> Plan
+withStepThreats s plan = case IM.lookup s (planSteps plan) of
+  Nothing -> plan
+  Just t -> plan {planThreats = foldr Set.insert (planThreats plan) [(l, Down s) | l <- Set.toList (planLinks plan), threatens plan l t]}
+
+-- | Drop recorded threats that orderings or bindings have since ruled out.
+recheckThreats :: Plan -> Plan
+recheckThreats plan = plan {planThreats = Set.filter stillThreat (planThreats plan)}
+  where
+    stillThreat (l, Down s) = maybe False (threatens plan l) (IM.lookup s (planSteps plan))
 
 resolveCausalThreat :: Env -> Plan -> StepId -> CausalLink -> [Child]
 resolveCausalThreat env plan t l =
@@ -180,7 +215,7 @@ resolveCausalThreat env plan t l =
     -- For each clobbering effect that only possibly codesignates, forbid one
     -- of the argument equalities it relies on.
     separations =
-      [ plan {planBindings = b'}
+      [ p'
       | Just step <- [IM.lookup t (planSteps plan)]
       , e <- map (resolveLiteral b) (stepEff step)
       , litPositive e == litPositive cond
@@ -189,7 +224,7 @@ resolveCausalThreat env plan t l =
       , (x, y) <- zip (atomArgs (litAtom e)) (atomArgs (litAtom cond))
       , x /= y
       , Just b' <- [addNeq b x y]
-      , not (envPrune env plan {planBindings = b'})
+      , Just p' <- [keep env plan {planBindings = b'}]
       ]
 
 -- Causal planning ---------------------------------------------------------
@@ -205,7 +240,8 @@ openCondition env plan0 sNeed p =
     plan = plan0 {planOpenConds = filter (/= (sNeed, p)) (planOpenConds plan0)}
     link (Establisher pl sAdd _) = do
       o <- addOrder sAdd sNeed (planOrder pl)
-      Just pl {planOrder = o, planLinks = Set.insert (CausalLink sAdd p sNeed) (planLinks pl)}
+      let l = CausalLink sAdd p sNeed
+      Just (withLinkThreats l pl {planOrder = o, planLinks = Set.insert l (planLinks pl)})
 
 -- Motivation planning -------------------------------------------------------
 
@@ -227,20 +263,25 @@ openMotivation env plan fid = case IM.lookup fid (planFrames plan) of
 -- Shared by causal and motivation planning: frame discovery on new Steps,
 -- then bookkeeping and pruning.
 afterEstablish :: Env -> Establisher -> Plan -> [(Plan, Text)]
-afterEstablish env est pl =
+afterEstablish env est pl0 =
   [ (pl'', note)
   | (pl', note) <- if estNew est then discoverFrames env (estStep est) pl else [(pl, "")]
   , Just pl'' <- [finalize env pl']
   ]
+  where
+    -- Not done in 'addStep': flaw ranking builds establishers it never keeps.
+    pl = if estNew est then withStepThreats (estStep est) pl0 else pl0
 
--- | Bookkeeping after every refinement: propose new intent flaws, then prune.
+-- | Bookkeeping after every refinement: prune, then propose new intent flaws.
+-- Hard preferences never read the intent fields, so pruning first is safe.
 finalize :: Env -> Plan -> Maybe Plan
-finalize env pl
-  | envMode env == POCL = keep env pl
-  | otherwise =
+finalize env pl0 = do
+  pl <- keep env pl0
+  if envMode env == POCL
+    then Just pl
+    else
       let fresh = nub [c | c <- intentCandidates pl, not (Set.member c (planProposedIntent pl))]
-       in keep
-            env
+       in Just
             pl
               { planPendingIntent = fresh ++ planPendingIntent pl
               , planProposedIntent = foldr Set.insert (planProposedIntent pl) fresh
@@ -292,8 +333,10 @@ resolveIntentFlaw env plan0 s c =
       o <- foldM (\acc (x, y) -> addOrder x y acc) (planOrder plan) orderings
       finalize env plan {planOrder = o, planFrames = IM.insert c f {frameInterval = IS.insert s (frameInterval f)} (planFrames plan)}
 
+-- | Every child passes through here, so it is where recorded threats are
+-- re-checked against the child's new orderings and bindings.
 keep :: Env -> Plan -> Maybe Plan
-keep env pl = if envPrune env pl then Nothing else Just pl
+keep env pl = if envPrune env pl then Nothing else Just (recheckThreats pl)
 
 -- Frame discovery -------------------------------------------------------------
 

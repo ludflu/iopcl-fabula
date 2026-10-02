@@ -54,6 +54,13 @@ spec = do
     it "drops ground actions whose preconditions can never hold" $ do
       let r = reachability (problemInit wingedProblem) (groundActions wingedProblem)
       map groundActionLabel (reachableActions r) `shouldBe` ["wake-up(hero)"]
+    forM_ [("tiny", tinyProblem), ("tower", towerProblem), ("bribe", bribeProblem), ("aladdin", aladdinProblem)] $ \(name, p) ->
+      it ("memoises the same costs as the direct computation on " <> name) $ do
+        let r = reachability (problemInit p) (groundActions p)
+            gas = reachableActions r
+        [l | l <- wantedLiterals gas, literalCost r emptyBindings l /= uncachedLiteralCost r l] `shouldBe` []
+        [a | g <- gas, a <- gaActors g, intentionCost r a /= uncachedIntentionCost r a] `shouldBe` []
+        [l | l <- problemOutcome p, literalCost r emptyBindings l /= uncachedLiteralCost r l] `shouldBe` []
   describe "search" $ do
     it "reports statistics when a limit is hit" $ do
       let r = solvePure defaultSolveConfig {cfgMaxExpanded = Just 100} aladdinProblem

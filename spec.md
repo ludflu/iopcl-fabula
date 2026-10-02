@@ -264,7 +264,9 @@ Establishers for an open condition `p`:
 - **Frame-order invariant**: when a Step joins a Frame that appears in `frameOrder`, the required orderings are added in the
   recorded direction.
 - Motivation links are not threat-protected. They don't need to be, because no effect can be `¬intends` (§4.1).
-- Threats are agenda flaws, detected after each refinement and de-duplicated.
+- Threats are agenda flaws, kept in the plan and updated incrementally (ticket 24). Orderings and bindings can only remove
+  threats, so a refinement checks a new link against every Step and a new Step against every link, then re-checks the
+  recorded threats. The from-scratch detector remains as the test oracle.
 
 ### 4.8 Refinement (`IPOCL.Refine`)
 
