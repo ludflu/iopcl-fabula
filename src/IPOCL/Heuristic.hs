@@ -2,6 +2,9 @@
 module IPOCL.Heuristic
   ( Reachability
   , reachability
+  , reachabilityWith
+  , problemReachability
+  , backstorySeeds
   , reachableActions
   , literalCost
   , uncachedLiteralCost
@@ -43,12 +46,26 @@ data Reachability = Reachability
   }
 
 reachability :: Set Atom -> [GroundAction] -> Reachability
-reachability initAtoms actions = r
+reachability = reachabilityWith Map.empty
+
+-- | Reachability for a problem, with its possible backstory reachable at
+-- commitment cost.
+problemReachability :: Problem -> Reachability
+problemReachability p = reachabilityWith (backstorySeeds p) (problemInit p) (groundActions p)
+
+backstorySeeds :: Problem -> Map Atom Int
+backstorySeeds p = Map.fromList [(a, backstoryCost p a) | a <- problemBackstory p]
+
+-- | Seeded facts start at their given cost. Like initial facts, they get no
+-- closed-world support for their negation.
+reachabilityWith :: Map Atom Int -> Set Atom -> [GroundAction] -> Reachability
+reachabilityWith seeds init0 actions = r
   where
+    initAtoms = init0 <> Map.keysSet seeds
     r = Reachability facts byPred initAtoms reachable groundCosts intentionCosts
     groundCosts = LazyMap.fromSet (uncachedLiteralCost r) (Set.fromList (wantedLiterals reachable))
     intentionCosts = LazyMap.fromSet (uncachedIntentionCost r) (Set.fromList (concatMap gaActors reachable))
-    initFacts = Map.fromList [(pos a, 0) | a <- Set.toList initAtoms]
+    initFacts = Map.fromList ([(pos a, c) | (a, c) <- Map.toList seeds] ++ [(pos a, 0) | a <- Set.toList init0])
     (facts, patterns, actionCost) = fixpoint initFacts Map.empty
     reachable = [g | g <- actions, Map.member (gaIndex g) actionCost]
     byPred =
@@ -149,12 +166,16 @@ heuristic = \case
 -- some open condition, open motivation or Orphan can never be repaired.
 additiveHeuristic :: Reachability -> Env -> Plan -> Maybe Int
 additiveHeuristic r env plan = do
-  opens <- traverse (\(_, l) -> literalCost r b l) (planOpenConds plan)
+  opens <- traverse (\(_, l) -> openCost l) (planOpenConds plan)
   motivations <- traverse (\f -> (1 +) <$> literalCost r b (frameIntention f)) unmotivated
   orphanCosts <- traverse orphanCost (intentionalOrphans env plan)
   required <- traverse (\(c, l) -> (1 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym c, TLit l]))) unmetRequired
   Just (sum opens + sum motivations + sum orphanCosts + sum required + length (planPendingIntent plan) + length threats)
   where
+    -- Committed backstory is free from now on.
+    openCost l
+      | litPositive l, Set.member (resolveAtom b (litAtom l)) (planBackstory plan) = Just 0
+      | otherwise = literalCost r b l
     b = planBindings plan
     -- The open condition already counts the goal; this is its future Frame's
     -- open motivation.

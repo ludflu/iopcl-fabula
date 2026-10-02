@@ -22,7 +22,8 @@ import IPOCL.Syntax
 validatePlan :: Mode -> Problem -> Plan -> [Text]
 validatePlan mode prob plan =
   concat
-    [ supportViolations
+    [ backstoryViolations
+    , supportViolations
     , threatViolations
     , if mode == IPOCL then frameViolations ++ orphanViolations ++ requiredViolations else []
     , simulate prob plan
@@ -33,12 +34,24 @@ validatePlan mode prob plan =
     steps = planSteps plan
     lbl s = maybe (T.pack (show s)) (stepLabel plan) (IM.lookup s steps)
     res = resolveLiteral b
-    initAtoms = problemInit prob
+    initAtoms = problemInit prob <> planBackstory plan
     effectsOf s = maybe [] (map res . stepEff) (IM.lookup s steps)
     provides s l
       | s == initStepId = if litPositive l then Set.member (litAtom l) initAtoms else not (Set.member (litAtom l) initAtoms)
       | otherwise = l `elem` effectsOf s
 
+    backstoryViolations =
+      [ "backstory " <> prettyAtom a <> " is not possible backstory"
+      | a <- Set.toList (planBackstory plan)
+      , a `notElem` problemBackstory prob
+      ]
+        ++ [ "closed-world support for unknown backstory " <> prettyLiteral (res (linkCond l))
+           | l <- Set.toList (planLinks plan)
+           , linkFrom l == initStepId
+           , not (litPositive (linkCond l))
+           , litAtom (res (linkCond l)) `elem` problemBackstory prob
+           , not (Set.member (litAtom (res (linkCond l))) (planBackstory plan))
+           ]
     supportViolations =
       [ "precondition " <> prettyLiteral (res q) <> " of " <> lbl (stepId s) <> " has no causal link"
       | s <- planStepList plan
@@ -102,7 +115,7 @@ validatePlan mode prob plan =
 
 -- | Execute one linearisation under the closed-world assumption.
 simulate :: Problem -> Plan -> [Text]
-simulate prob plan = go (problemInit prob) (linearize plan)
+simulate prob plan = go (problemInit prob <> planBackstory plan) (linearize plan)
   where
     b = planBindings plan
     go :: Set Atom -> [Step] -> [Text]

@@ -31,11 +31,17 @@ printProblem Problem {..} =
       ++ ["  (:goal " <> printConj (map printLiteral problemOutcome) <> ")"]
       ++ requiredSection
       ++ innerStory
+      ++ backstory
       ++ preferences
   where
     requiredSection
       | null problemRequiredFrames = []
       | otherwise = closeLast ("  (:required-frames" : ["    " <> sexp [symbolText c, printLiteral g] | RequiredFrame c g <- problemRequiredFrames])
+    backstory =
+      (if null problemBackstory then [] else closeLast ("  (:possible-backstory" : map (("    " <>) . printAtom) problemBackstory))
+        ++ [ "  (:backstory-cost :fact " <> showT (bcFact problemBackstoryCost) <> " :intention " <> showT (bcIntention problemBackstoryCost) <> ")"
+           | problemBackstoryCost /= defaultBackstoryCost
+           ]
     innerStory =
       ["  " <> sexp [":protagonist", symbolText c] | Just c <- [problemProtagonist]]
         ++ ["  " <> sexp [":desire", printLiteral g] | Just g <- [problemDesire]]
@@ -73,6 +79,7 @@ printPreference (Preference rule strength) = sexp (ruleParts ++ strengthParts)
       NoRepeatSteps -> ["no-repeat-steps"]
       ThirdRail -> ["third-rail"]
       ServesProtagonist c -> ["serves-protagonist", symbolText c]
+      MaxBackstory n -> ["max-backstory", showT n]
     strengthParts = case strength of
       Hard -> [":hard"]
       Soft 10 -> []

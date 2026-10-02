@@ -32,6 +32,9 @@ module IPOCL.Syntax
   , PreferenceRule (..)
   , Preference (..)
   , RequiredFrame (..)
+  , BackstoryCost (..)
+  , defaultBackstoryCost
+  , backstoryCost
   , requiredFrames
   , believesPredicate
   , Problem (..)
@@ -170,6 +173,7 @@ data PreferenceRule
   | NoRepeatSteps
   | ThirdRail
   | ServesProtagonist !Symbol
+  | MaxBackstory !Int
   deriving (Eq, Show)
 
 data Preference = Preference {prefRule :: !PreferenceRule, prefStrength :: !Strength}
@@ -190,8 +194,26 @@ data Problem = Problem
   , problemProtagonist :: !(Maybe Symbol)
   , problemDesire :: !(Maybe Literal)
   , problemMisbeliefs :: ![Atom]
+  , problemBackstory :: ![Atom]
+  -- ^ Facts and Intentions the planner may commit to the initial state.
+  , problemBackstoryCost :: !BackstoryCost
   }
   deriving (Eq, Show)
+
+-- | What committing one backstory literal adds to the plan cost @g@. Intentions
+-- cost more: a Frame they motivate skips motivation planning. Below 7, Aladdin's
+-- first Story swaps an order Step for backstory at the default weight 2
+-- (checked by bench/Aladdin.hs).
+data BackstoryCost = BackstoryCost {bcFact :: !Int, bcIntention :: !Int}
+  deriving (Eq, Show)
+
+defaultBackstoryCost :: BackstoryCost
+defaultBackstoryCost = BackstoryCost 3 7
+
+backstoryCost :: Problem -> Atom -> Int
+backstoryCost p a
+  | atomPredicate a == intendsPredicate = bcIntention (problemBackstoryCost p)
+  | otherwise = bcFact (problemBackstoryCost p)
 
 -- | The declared Required Frames plus the Protagonist's Desire.
 requiredFrames :: Problem -> [RequiredFrame]
@@ -269,4 +291,6 @@ problem n d cs i g =
     , problemProtagonist = Nothing
     , problemDesire = Nothing
     , problemMisbeliefs = []
+    , problemBackstory = []
+    , problemBackstoryCost = defaultBackstoryCost
     }

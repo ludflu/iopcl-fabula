@@ -15,6 +15,7 @@ checkProblem :: Problem -> [Text]
 checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPreference (problemPreferences p)
     ++ concatMap checkRequired (problemRequiredFrames p)
     ++ checkInnerStory
+    ++ concatMap checkBackstory (problemBackstory p)
   where
     d = problemDomain p
     statics = staticPredicates d
@@ -49,6 +50,7 @@ checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPrefe
       NoRepeatSteps -> []
       ThirdRail -> needsProtagonist "third-rail"
       ServesProtagonist c -> unknown c ++ needsProtagonist "serves-protagonist"
+      MaxBackstory _ -> []
     needsProtagonist n = ["preference " <> n <> " needs a protagonist" | Nothing <- [problemProtagonist p]]
     checkRequired (RequiredFrame c g) =
       ["required frame names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]
@@ -66,6 +68,11 @@ checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPrefe
            , not (Set.member (Atom intendsPredicate [TSym c, TLit g]) (problemInit p))
            ]
         ++ concatMap checkMisbelief (problemMisbeliefs p)
+    checkBackstory a =
+      let name = "possible backstory " <> prettyAtom a
+       in [name <> " already holds in the initial state" | Set.member a (problemInit p)]
+            ++ [name <> " uses the constraint predicate " <> atomPredicate a | atomPredicate a `Set.member` statics]
+            ++ [name <> " must be ground" | not (null (atomVars a))]
     checkMisbelief m =
       let name = "misbelief " <> prettyAtom m
        in [name <> " is not a believes fact" | atomPredicate m /= believesPredicate]

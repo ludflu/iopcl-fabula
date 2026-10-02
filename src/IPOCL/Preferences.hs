@@ -30,6 +30,7 @@ violations p plan = \case
   NoRepeatSteps -> length groundSteps - Set.size (Set.fromList groundSteps)
   ThirdRail -> count (not . serves . stepId) (actionSteps plan)
   ServesProtagonist c -> count (not . maybe True serves . frameFinal) (framesOf plan c)
+  MaxBackstory n -> max 0 (Set.size (planBackstory plan) - n)
   where
     b = planBindings plan
     goalsOf c = map (resolvedGoal plan) (framesOf plan c)

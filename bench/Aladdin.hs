@@ -44,8 +44,31 @@ main = do
   more <- solve defaultSolveConfig {cfgTimeout = Just budget, cfgMaxExpanded = Nothing, cfgCount = 5} aladdinProblem
   moreDone <- getMonotonicTime
   report "first five Stories" more (moreDone - firstDone)
+  -- Backstory could supply the Intentions the order Steps give (ticket 18);
+  -- the Stories should still keep them.
+  let ordered = take 1 (resultStories first)
+      intentions =
+        [ Atom intendsPredicate [TSym (frameCharacter f), TLit (resolvedGoal s f)]
+        | s <- ordered
+        , f <- IM.elems (planFrames s)
+        , Just m <- [frameMotivator f]
+        , isOrder s m
+        ]
+      isOrder s m = maybe False (("order" `T.isPrefixOf`) . stepLabel s) (IM.lookup m (planSteps s))
+      orderSteps s = [stepLabel s st | st <- actionSteps s, isOrder s (stepId st)]
+  withBackstory <- solve defaultSolveConfig {cfgTimeout = Just budget, cfgMaxExpanded = Nothing} aladdinProblem {problemBackstory = intentions}
+  backstoryDone <- getMonotonicTime
+  report "first Story with order Intentions as possible backstory" withBackstory (backstoryDone - moreDone)
   let stories = resultStories more
+      backstoryProblems =
+        [ "no order Steps to test backstory against" | null intentions ]
+          ++ [ "possible backstory replaced the order Steps"
+             | s <- take 1 (resultStories withBackstory)
+             , map orderSteps ordered /= [orderSteps s] || not (Set.null (planBackstory s))
+             ]
+          ++ [ "no Story with possible backstory" | null (resultStories withBackstory) ]
       problems =
+        backstoryProblems ++
         [ "no Story within the budget" | null (resultStories first) ]
           ++ [ "first Story took longer than 5 minutes" | firstDone - start > budget ]
           ++ [ "Story " <> tshow i <> ": " <> e | (i, s) <- zip [1 :: Int ..] stories, e <- validatePlan IPOCL aladdinProblem s ]
@@ -53,6 +76,7 @@ main = do
   forM_ (take 1 (resultStories first)) (T.putStrLn . renderPlan)
   forM_ (zip [1 :: Int ..] stories) $ \(i, s) ->
     T.putStrLn ("Story " <> tshow i <> (if frameSet s == figure15 then ": Frames match Figure 15" else ": other Frames"))
+  unless (null backstoryProblems) $ forM_ (take 1 (resultStories withBackstory)) (T.putStrLn . renderPlan)
   unless (null problems) $ mapM_ (T.putStrLn . ("FAIL: " <>)) problems >> exitFailure
   T.putStrLn "Level B: PASS"
   where

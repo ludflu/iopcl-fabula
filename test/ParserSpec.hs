@@ -198,6 +198,7 @@ genPreference = Preference <$> rule <*> strength
         , pure NoRepeatSteps
         , pure ThirdRail
         , ServesProtagonist <$> who
+        , MaxBackstory <$> chooseInt (0, 10)
         ]
     strength = oneof [pure Hard, Soft <$> chooseInt (0, 10000)]
 
@@ -214,3 +215,5 @@ genProblem =
     <*> oneof [pure Nothing, Just . Symbol <$> identifier]
     <*> oneof [pure Nothing, Just <$> genLiteral [] 2]
     <*> small (genAtom [] 2)
+    <*> small (genAtom [] 2)
+    <*> oneof [pure defaultBackstoryCost, BackstoryCost <$> chooseInt (0, 20) <*> chooseInt (0, 20)]

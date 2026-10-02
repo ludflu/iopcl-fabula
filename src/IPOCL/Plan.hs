@@ -93,6 +93,8 @@ data Plan = Plan
   -- ^ Causal threats as (link, clobbering Step). The descending Step order is
   -- the order flaw selection has always seen; changing it changes the search.
   , planRequired :: !(IntMap Symbol)
+  , planBackstory :: !(Set Atom)
+  -- ^ Committed backstory, also added to the init Step's effects.
   -- ^ Pseudo-steps of Required Frames (ADR-0004), with their Character.
   , planNextStep :: !StepId
   , planNextFrame :: !FrameId
@@ -124,6 +126,7 @@ initialPlan p =
     , planProposedIntent = Set.empty
     , planThreatOrders = Set.empty
     , planThreats = Set.empty
+    , planBackstory = Set.empty
     , planRequired = IM.fromList [(k, rfCharacter r) | (k, r) <- required]
     , planNextStep = 2 + length required
     , planNextFrame = 0

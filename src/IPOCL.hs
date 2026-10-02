@@ -13,7 +13,6 @@ module IPOCL
 import Data.IORef
 import Data.Set qualified as Set
 import GHC.Clock (getMonotonicTime)
-import IPOCL.Ground
 import IPOCL.Heuristic
 import IPOCL.Plan
 import IPOCL.Preferences (softPenalty)
@@ -81,7 +80,7 @@ events cfg p = distinct Set.empty (search env searchCfg (initialPlan p))
         | Set.member (storySignature plan) seen -> distinct seen rest
         | otherwise -> ev : distinct (Set.insert (storySignature plan) seen) rest
       ev : rest -> ev : distinct seen rest
-    r = reachability (problemInit p) (groundActions p)
+    r = problemReachability p
     env = mkEnvWith (cfgMode cfg) p (reachableActions r)
     searchCfg =
       defaultSearchConfig
@@ -92,7 +91,7 @@ events cfg p = distinct Set.empty (search env searchCfg (initialPlan p))
         , scSignature = if cfgDedupe cfg then Just planSignature else Nothing
         , scCost = case cfgHeuristic cfg of
             Blind -> const
-            _ -> scCost defaultSearchConfig
+            _ -> \d plan -> scCost defaultSearchConfig d plan + sum (map (backstoryCost p) (Set.toList (planBackstory plan)))
         }
 
 -- | Solve without time-outs or tracing.

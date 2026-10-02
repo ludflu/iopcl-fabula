@@ -12,7 +12,7 @@ import Control.Monad (void, when)
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.List (find)
 import Data.Either (lefts)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -43,7 +43,7 @@ checkedProblem dPath dText pPath pText = do
       prefIssues =
         [ located sp issue
         | (pr, sp) <- zip (problemPreferences p) prefPos
-        , issue <- checkProblem p {problemDomain = d {domainSchemas = []}, problemPreferences = [pr], problemRequiredFrames = [], problemProtagonist = Nothing, problemDesire = Nothing, problemMisbeliefs = []}
+        , issue <- checkProblem p {problemDomain = d {domainSchemas = []}, problemPreferences = [pr], problemRequiredFrames = [], problemProtagonist = Nothing, problemDesire = Nothing, problemMisbeliefs = [], problemBackstory = []}
         ]
   case schemaIssues ++ prefIssues of
     [] -> Right p
@@ -220,6 +220,8 @@ data Section
   | SProtagonist Symbol
   | SDesire Literal
   | SMisbeliefs [Atom]
+  | SBackstory [Atom]
+  | SBackstoryCost BackstoryCost
 
 problemFile :: Domain -> P (Problem, [SourcePos])
 problemFile d = between sc eof . parens $ do
@@ -240,6 +242,8 @@ problemFile d = between sc eof . parens $ do
         , keyed "protagonist" (SProtagonist . Symbol <$> name)
         , keyed "desire" (SDesire <$> literalP)
         , keyed "misbeliefs" (SMisbeliefs <$> many (parens atomBody))
+        , keyed "possible-backstory" (SBackstory <$> many (parens atomBody))
+        , keyed "backstory-cost" (SBackstoryCost <$> (BackstoryCost <$> (keyword ":fact" *> integer) <*> (keyword ":intention" *> integer)))
         ]
   uniqueKeys [(so, k) | (so, k, _) <- sections]
   let prefs = concat [ps | (_, _, SPrefs ps) <- sections]
@@ -255,6 +259,8 @@ problemFile d = between sc eof . parens $ do
         , problemProtagonist = listToMaybe [c | (_, _, SProtagonist c) <- sections]
         , problemDesire = listToMaybe [g | (_, _, SDesire g) <- sections]
         , problemMisbeliefs = concat [ms | (_, _, SMisbeliefs ms) <- sections]
+        , problemBackstory = concat [as | (_, _, SBackstory as) <- sections]
+        , problemBackstoryCost = fromMaybe defaultBackstoryCost (listToMaybe [c | (_, _, SBackstoryCost c) <- sections])
         }
     , map snd prefs
     )
@@ -271,6 +277,7 @@ preferenceBody = Preference <$> rule <*> strength
         , NoRepeatSteps <$ keyword "no-repeat-steps"
         , ThirdRail <$ keyword "third-rail"
         , keyword "serves-protagonist" *> (ServesProtagonist <$> character)
+        , keyword "max-backstory" *> (MaxBackstory <$> integer)
         ]
     strength =
       (Hard <$ keyword ":hard")

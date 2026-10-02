@@ -29,13 +29,13 @@ problemWarnings p =
        | Just c <- [problemProtagonist p]
        , let own = [m | m <- problemMisbeliefs p, take 1 (atomArgs m) == [TSym c]]
        , not (null own)
-       , let blind = reachability (problemInit p) [a | a <- actions, not (any (a `negates`) own)]
+       , let blind = reachabilityWith (backstorySeeds p) (problemInit p) [a | a <- actions, not (any (a `negates`) own)]
        , Just g <- [problemDesire p]
        , isJust (literalCost blind emptyBindings g)
        ]
   where
     actions = groundActions p
-    r = reachability (problemInit p) actions
+    r = problemReachability p
     unreachable l = isNothing (literalCost r emptyBindings l)
     requiredWarnings (RequiredFrame c g) =
       let name = "required frame " <> symbolText c <> " wants " <> prettyLiteral g

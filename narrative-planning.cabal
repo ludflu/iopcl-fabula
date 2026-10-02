@@ -92,6 +92,7 @@ test-suite spec
         RequiredSpec
         InnerStorySpec
         RelevanceSpec
+        BackstorySpec
     build-depends:
         base,
         containers,

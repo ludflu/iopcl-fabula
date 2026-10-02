@@ -9,6 +9,7 @@ import NarrateSpec qualified
 import RequiredSpec qualified
 import InnerStorySpec qualified
 import RelevanceSpec qualified
+import BackstorySpec qualified
 import TraceSpec qualified
 import OrderSpec qualified
 import ParserSpec qualified
@@ -36,3 +37,4 @@ main = hspec $ do
   RequiredSpec.spec
   InnerStorySpec.spec
   RelevanceSpec.spec
+  BackstorySpec.spec

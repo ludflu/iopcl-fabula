@@ -5,6 +5,7 @@ module IPOCL.Report
 
 import Data.IntMap.Strict qualified as IM
 import Data.IntSet qualified as IS
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 import IPOCL.Linearize
@@ -19,6 +20,7 @@ renderPlan plan =
       ++ [ "  " <> T.pack (show i) <> ". " <> stepLabel plan s <> happeningMark s
          | (i, s) <- zip [1 :: Int ..] (filter isActionStep (linearize plan))
          ]
+      ++ (if Set.null (planBackstory plan) then [] else "Backstory:" : ["  " <> prettyAtom a | a <- Set.toList (planBackstory plan)])
       ++ (if IM.null (planFrames plan) then [] else "Frames:" : map frameLine (IM.elems (planFrames plan)))
   where
     happeningMark s = if stepHappening s then "  (happening)" else ""

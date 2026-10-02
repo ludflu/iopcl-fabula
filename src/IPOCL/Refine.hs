@@ -388,9 +388,10 @@ data Establisher = Establisher
 -- | Ways to make @p@ true before all of @later@, via existing Steps (including
 -- the initial state under the closed-world assumption) or a new Step.
 establishers :: Env -> Plan -> [StepId] -> Literal -> [Establisher]
-establishers env plan later p = existing ++ closedWorld ++ new
+establishers env plan later p = existing ++ closedWorld ++ backstory ++ new
   where
     b = planBindings plan
+    candidates = problemBackstory (envProblem env)
     existing =
       [ Establisher plan {planBindings = b'} (stepId s) False
       | s <- planStepList plan
@@ -398,12 +399,27 @@ establishers env plan later p = existing ++ closedWorld ++ new
       , e <- stepEff s
       , Just b' <- [unifyLiterals b e p]
       ]
+    -- Possible backstory is unknown rather than false until committed.
     closedWorld =
       [ Establisher plan initStepId False
       | not (litPositive p)
       , let a = resolveAtom b (litAtom p)
-      , not (any (\i -> isJust (unifyAtoms b i a)) (Set.toList (envInit env)))
+      , not (any (\i -> isJust (unifyAtoms b i a)) (Set.toList (envInit env) ++ candidates))
       ]
+    backstory =
+      [ Establisher (commit a plan {planBindings = b'}) initStepId False
+      | litPositive p
+      , a <- candidates
+      , not (Set.member a (planBackstory plan))
+      , Just b' <- [unifyAtoms b a (litAtom p)]
+      , not (any (deniedBy b' a) (Set.toList (planLinks plan)))
+      ]
+    deniedBy b' a l = linkFrom l == initStepId && not (litPositive (linkCond l)) && isJust (unifyAtoms b' a (litAtom (linkCond l)))
+    commit a pl =
+      pl
+        { planBackstory = Set.insert a (planBackstory pl)
+        , planSteps = IM.adjust (\s -> s {stepEff = pos a : stepEff s}) initStepId (planSteps pl)
+        }
     new =
       [ est
       | let k = planNextStep plan
