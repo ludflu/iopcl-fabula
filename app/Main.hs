@@ -28,7 +28,11 @@ data Command
   | SolveFiles FilePath FilePath SolveOpts
 
 data SolveOpts = SolveOpts
-  { optMaxNodes :: Maybe Int
+  { optSearch :: Text
+  , optBeamWidth :: Int
+  , optMctsC :: Double
+  , optMctsRolloutDepth :: Int
+  , optMaxNodes :: Maybe Int
   , optTimeout :: Maybe Double
   , optCount :: Int
   , optTrace :: Maybe FilePath
@@ -54,7 +58,11 @@ builtins =
 solveOpts :: Parser SolveOpts
 solveOpts =
   SolveOpts
-    <$> optional (option auto (long "max-nodes" <> metavar "N" <> help "Maximum nodes to expand"))
+    <$> strOption (long "search" <> metavar "best-first|beam|mcts" <> value "best-first" <> help "Search strategy (default best-first)")
+    <*> option auto (long "beam-width" <> metavar "K" <> value 100 <> help "Plans kept per layer by --search beam (default 100)")
+    <*> option auto (long "mcts-c" <> metavar "C" <> value (mctsExploration defaultMctsParams) <> help "UCB1 exploration constant for --search mcts (default sqrt 2)")
+    <*> option auto (long "mcts-rollout-depth" <> metavar "N" <> value (mctsRolloutDepth defaultMctsParams) <> help "Refinements before an MCTS rollout is cut off (default 150)")
+    <*> optional (option auto (long "max-nodes" <> metavar "N" <> help "Maximum nodes to expand"))
     <*> optional (option auto (long "timeout" <> metavar "SECONDS" <> help "Wall-clock limit"))
     <*> option auto (long "count" <> metavar "N" <> value 1 <> help "Number of distinct stories")
     <*> optional (strOption (long "trace" <> metavar "FILE" <> help "Write a search trace to FILE"))
@@ -99,9 +107,15 @@ run p opts = do
     mapM_ (TIO.hPutStrLn stderr) issues
     exitFailure
   mapM_ (TIO.hPutStrLn stderr . ("warning: " <>)) (problemWarnings p)
+  strategy <- case optSearch opts of
+    "best-first" -> pure BestFirst
+    "beam" -> pure (Beam (optBeamWidth opts))
+    "mcts" -> pure (Mcts MctsParams {mctsExploration = optMctsC opts, mctsRolloutDepth = optMctsRolloutDepth opts})
+    other -> die' ("unknown search strategy " <> other)
   let cfg =
         defaultSolveConfig
-          { cfgMaxExpanded = optMaxNodes opts <|> cfgMaxExpanded defaultSolveConfig
+          { cfgStrategy = strategy
+          , cfgMaxExpanded = optMaxNodes opts <|> cfgMaxExpanded defaultSolveConfig
           , cfgTimeout = optTimeout opts
           , cfgCount = optCount opts
           , cfgHeuristic = optHeuristic opts

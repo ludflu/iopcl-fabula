@@ -408,9 +408,10 @@ The Haskell EDSL comes first, and the text format is added in M6. A round-trip t
 ### 4.16 CLI
 
 ```
-narrative-planning solve DOMAIN PROBLEM [--count N] [--seed N]
+narrative-planning solve DOMAIN PROBLEM [--search best-first|beam|mcts] [--count N] [--seed N]
     [--weight W | --greedy] [--heuristic default|paper] [--max-nodes N] [--timeout S]
-    [--trace FILE] [--dot FILE] [--no-narrate]
+    [--beam-width K] [--mcts-c C] [--mcts-rollout-depth N]
+    [--trace FILE] [--dot FILE] [--no-narrate] [--cards] [--dedupe]
 narrative-planning validate DOMAIN PROBLEM PLAN
 narrative-planning builtin tower|bribe|aladdin [solve options]
 ```

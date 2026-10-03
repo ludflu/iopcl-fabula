@@ -12,6 +12,8 @@ import RelevanceSpec qualified
 import BackstorySpec qualified
 import FailedSpec qualified
 import TickingSpec qualified
+import BeamSpec qualified
+import MctsSpec qualified
 import TraceSpec qualified
 import OrderSpec qualified
 import ParserSpec qualified
@@ -42,3 +44,5 @@ main = hspec $ do
   BackstorySpec.spec
   FailedSpec.spec
   TickingSpec.spec
+  describe "Beam search" BeamSpec.spec
+  describe "Monte Carlo tree search" MctsSpec.spec
