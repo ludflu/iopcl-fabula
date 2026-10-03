@@ -117,8 +117,8 @@ spec = describe "Protagonist, Desire and Misbeliefs" $ do
       p <-
         loadProblem "domains/aladdin-inner.ipocl" "domains/aladdin-inner-problem.ipocl"
           >>= either (\e -> expectationFailure (T.unpack e) >> error "unreachable") pure
-      let ss = resultStories (solvePure defaultSolveConfig {cfgMaxExpanded = Just 100000, cfgCount = 3} p)
-      length ss `shouldBe` 3
+      let ss = resultStories (solvePure defaultSolveConfig {cfgMaxExpanded = Just 100000, cfgCount = 5} p)
+      length ss `shouldBe` 5
       mapM_ (`shouldBeValidFor` p) ss
       mapM_ (\s -> planBackstory s `shouldBe` Set.singleton (atom "has" ["dragon", "lamp"])) ss
       mapM_ (\s -> length (filter ("aladdin realizes" `T.isPrefixOf`) (T.lines (narrate p s))) `shouldBe` 1) ss

@@ -17,12 +17,12 @@
 
 **Blocked by:** 13, 23, 25, **31** (predicate + ADR-0009), **30** (weight baseline documented). Implement **after 31** if both touch the same helper; otherwise land **31** and **29** in one PR with shared `intentAdoptForeverImpossible`.
 
-**Status:** open
+**Status:** done
 
-- [ ] Named change and inadmissibility note in ticket **Result** and, if needed, one sentence in **spec.md** §4.11.
-- [ ] `HeuristicSpec` / preference tests pass; new tests comparing **`h`** with/without hopeless pending intents on crafted Tiny plans.
-- [ ] Bench before/after at **`w = 2`**; first Story and five-Story acceptance as ticket 13, or documented intentional difference.
-- [ ] **≥ 10%** expansion drop at **`w = 2`**, or **Result** explains interaction (e.g. 31 already removed hopeless pairs so 29 adds little).
+- [x] Named change and inadmissibility note in ticket **Result** and, if needed, one sentence in **spec.md** §4.11.
+- [x] `HeuristicSpec` / preference tests pass; new tests comparing **`h`** with/without hopeless pending intents on crafted Tiny plans.
+- [x] Bench before/after at **`w = 2`**; first Story and five-Story acceptance as ticket 13, or documented intentional difference.
+- [x] **≥ 10%** expansion drop at **`w = 2`**, or **Result** explains interaction (e.g. 31 already removed hopeless pairs so 29 adds little).
 
 **Notes:** If after **31** the predicate rarely leaves pending hopeless pairs, **rescope 29** to the next profile hotspot (**`intentCandidates`** / **`establishers`**) only after a fresh **40k `-prof`** on `main`. Relevance soft penalties (third-rail) already in **`softPenalty`** — out of scope here.
 
@@ -54,4 +54,10 @@
 
 ## Result
 
-*(Fill when closed.)*
+**Change:** `hopelessIntentCost = 9` per pending `(s, c)` when `intentAdoptForeverImpossible` (inadmissible; module comment in `IPOCL.Heuristic`).
+
+After ticket **31**, almost no forever-impossible pairs remain on `planPendingIntent`, so this mostly affects ordering before filter or rare edge cases — not a large expansion win on its own.
+
+**Bench** (`w = 2`, first Story, with **29**+**31**): **183,911** expanded / **437,699** generated (~**3.2%** fewer expanded than **189,899** baseline; Figure 15 still among first five). No **≥10%** drop from **29** alone; surcharge mostly redundant once **31** filters pending pairs.
+
+**Note:** Prefer **`--weight 1`** for expansion cuts (ticket **30**).

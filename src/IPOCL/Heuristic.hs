@@ -1,4 +1,7 @@
 -- | Relaxed reachability over ground actions and the plan heuristics built on it.
+--
+-- 'additiveHeuristic' adds an inadmissible surcharge on pending intent pairs
+-- whose adopt branch is permanently impossible (see 'IPOCL.IntentFeasible').
 module IPOCL.Heuristic
   ( Reachability
   , reachability
@@ -15,6 +18,7 @@ module IPOCL.Heuristic
   , heuristic
   , additiveHeuristic
   , paperHeuristic
+  , hopelessIntentCost
   ) where
 
 import Data.IntMap.Strict qualified as IM
@@ -27,9 +31,13 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import IPOCL.Bindings
 import IPOCL.Ground
+import IPOCL.IntentFeasible (intentAdoptForeverImpossible)
 import IPOCL.Plan
 import IPOCL.Refine
 import IPOCL.Syntax
+
+hopelessIntentCost :: Int
+hopelessIntentCost = 9
 
 -- | Additive (h_add) costs of reaching literals from the initial state,
 -- ignoring delete interactions.
@@ -174,7 +182,7 @@ additiveHeuristic r plan = do
   orphanCosts <- traverse orphanCost (orphans plan)
   required <- traverse (\(c, l) -> (1 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym c, TLit l]))) unmetRequired
   attempts <- traverse (\(c, l) -> (2 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym c, TLit l]))) openAttempts
-  Just (sum opens + sum motivations + sum orphanCosts + sum required + sum attempts + length (planPendingIntent plan) + length threats)
+  Just (sum opens + sum motivations + sum orphanCosts + sum required + sum attempts + sum pendingIntentCosts + length threats)
   where
     -- Committed backstory is free from now on.
     openCost l
@@ -198,6 +206,10 @@ additiveHeuristic r plan = do
       ]
     unmotivated = [f | f <- IM.elems (planFrames plan), isNothing (frameMotivator f)]
     threats = filter isThreat (flaws plan)
+    pendingIntentCosts =
+      [ if intentAdoptForeverImpossible plan s c then hopelessIntentCost else 1
+      | (s, c) <- planPendingIntent plan
+      ]
     -- An Orphan with a pending intent flaw for one of its Actor's Frames is one
     -- decision from joining; any other still needs a Frame it has not got.
     orphanCost (s, a)
