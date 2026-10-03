@@ -30,6 +30,7 @@ module IPOCL.Syntax
   , Domain (..)
   , Strength (..)
   , PreferenceRule (..)
+  , defaultPrefWeight
   , Preference (..)
   , RequiredFrame (..)
   , BackstoryCost (..)
@@ -177,7 +178,12 @@ data PreferenceRule
   | ServesProtagonist !Symbol
   | MaxBackstory !Int
   | MisbeliefBlocks
+  | RealizationBeforeDesireProgress
   deriving (Eq, Show)
+
+defaultPrefWeight :: PreferenceRule -> Int
+defaultPrefWeight RealizationBeforeDesireProgress = 50
+defaultPrefWeight _ = 10
 
 data Preference = Preference {prefRule :: !PreferenceRule, prefStrength :: !Strength}
   deriving (Eq, Show)

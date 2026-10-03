@@ -52,6 +52,7 @@ checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPrefe
       ServesProtagonist c -> unknown c ++ needsProtagonist "serves-protagonist"
       MaxBackstory _ -> []
       MisbeliefBlocks -> needsProtagonist "misbelief-blocks"
+      RealizationBeforeDesireProgress -> needsProtagonist "realization-before-desire-progress"
     needsProtagonist n = ["preference " <> n <> " needs a protagonist" | Nothing <- [problemProtagonist p]]
     checkRequired (RequiredFrame c g _) =
       ["required frame names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]

@@ -271,7 +271,10 @@ problemFile d = between sc eof . parens $ do
     )
 
 preferenceBody :: P Preference
-preferenceBody = Preference <$> rule <*> strength
+preferenceBody = do
+  r <- rule
+  s <- strengthFor r
+  pure (Preference r s)
   where
     character = Symbol <$> name
     rule =
@@ -284,8 +287,9 @@ preferenceBody = Preference <$> rule <*> strength
         , keyword "serves-protagonist" *> (ServesProtagonist <$> character)
         , keyword "max-backstory" *> (MaxBackstory <$> integer)
         , MisbeliefBlocks <$ keyword "misbelief-blocks"
+        , RealizationBeforeDesireProgress <$ keyword "realization-before-desire-progress"
         ]
-    strength =
+    strengthFor r =
       (Hard <$ keyword ":hard")
         <|> (Soft <$> (keyword ":weight" *> integer))
-        <|> pure (Soft 10)
+        <|> pure (Soft (defaultPrefWeight r))

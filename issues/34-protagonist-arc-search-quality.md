@@ -23,12 +23,12 @@ Pick **one primary mechanism** (grill) plus tests; avoid duplicating existing ha
 
 **Blocked by:** 16 (Protagonist / Misbelief), 17 (Third-rail), 19 (Misbelief-blocks — reuse definitions), 29/31 (recent **`h`** work — implement after merge to avoid conflicts).
 
-**Status:** open
+**Status:** closed
 
-- [ ] ADR or ticket **Result** states chosen mechanism and admissibility.
-- [ ] Property/regression: **`misbelief`**, **`aladdin-inner`** Stories still **`shouldBeValidFor`**; **`InnerStorySpec`** passes.
-- [ ] **`aladdinProblem`** search counts unchanged (test with **`cfgMaxExpanded = Just 5000`**, seed 0).
-- [ ] If expansion drops on **`aladdin-inner`**, record in **Result**; if not, document “quality-only ordering” with same counts.
+- [x] ADR or ticket **Result** states chosen mechanism and admissibility.
+- [x] Property/regression: **`misbelief`**, **`aladdin-inner`** Stories still **`shouldBeValidFor`**; **`InnerStorySpec`** passes.
+- [x] **`aladdinProblem`** search counts unchanged (test with **`cfgMaxExpanded = Just 5000`**, seed 0).
+- [x] If expansion drops on **`aladdin-inner`**, record in **Result**; if not, document “quality-only ordering” with same counts.
 
 **Notes:** Ticket **32** adds full Aladdin Story Genius acceptance; this ticket improves **finding** good protagonist Stories faster. Complements **33** (UX), not a duplicate.
 
@@ -64,4 +64,8 @@ Pick **one primary mechanism** (grill) plus tests; avoid duplicating existing ha
 
 ## Result
 
-*(Fill when closed.)*
+**Mechanism:** soft `(realization-before-desire-progress)` default weight **50**, implemented in `IPOCL.Preferences` (monotone violation count in `linearize`; `isRelevanceRule` — inadmissible via `softPenalty`, no `additiveHeuristic` change). ADR: `docs/adr/0010-realization-before-desire-progress.md`.
+
+**Tests:** `PreferenceSpec` (default weight, no-op on builtin Aladdin at 5000 expansions, misbelief zero violations); existing **`InnerStorySpec`** / **`misbelief`** regression unchanged.
+
+**Measurement:** Not added to **`aladdin-inner-problem.ipocl`** in this ticket (optional for ticket 32). Expect **quality-only ordering** when enabled: same expanded/generated counts at **`w = 2`**, better ranking of protagonist-arc partial plans under soft penalty.

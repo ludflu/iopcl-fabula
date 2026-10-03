@@ -15,6 +15,7 @@ import Data.Maybe (isJust)
 import Data.Set qualified as Set
 import IPOCL.Bindings
 import IPOCL.Ground
+import IPOCL.Linearize
 import IPOCL.Plan
 import IPOCL.Syntax
 
@@ -32,6 +33,7 @@ violations p plan = \case
   ServesProtagonist c -> count (not . maybe True serves . frameEnd) (framesOf plan c)
   MaxBackstory n -> max 0 (Set.size (planBackstory plan) - n)
   MisbeliefBlocks -> count (not . blockedByMisbelief) (concatMap attempts (maybe [] (framesOf plan) (problemProtagonist p)))
+  RealizationBeforeDesireProgress -> realizationBeforeDesireViolations p plan
   where
     b = planBindings plan
     goalsOf c = map (resolvedGoal plan) (framesOf plan c)
@@ -66,6 +68,7 @@ isRelevanceRule :: PreferenceRule -> Bool
 isRelevanceRule = \case
   ThirdRail -> True
   ServesProtagonist _ -> True
+  RealizationBeforeDesireProgress -> True
   _ -> False
 
 -- | Prunes a partial plan; relevance rules wait for 'finalViolated'.
@@ -105,3 +108,30 @@ reaching plan = go
       let next = IS.unions [IM.findWithDefault IS.empty t preds | t <- IS.toList seen]
           seen' = seen <> next
        in if IS.size seen' == IS.size seen then seen else go seen'
+
+realizationBeforeDesireViolations :: Problem -> Plan -> Int
+realizationBeforeDesireViolations p plan =
+  case (problemProtagonist p, problemDesire p) of
+    (Nothing, _) -> 0
+    (_, Nothing) -> 0
+    (Just c, Just desireLit) ->
+      let b = planBindings plan
+          desire = resolveLiteral b desireLit
+          ownMisbeliefs = [m | m <- problemMisbeliefs p, take 1 (atomArgs m) == [TSym c]]
+          unifiesDesire l = isJust (unifyLiterals b (resolveLiteral b l) desire)
+          realizes s =
+            not (isUnexecuted plan (stepId s))
+              && any (\e -> not (litPositive e) && litAtom (resolveLiteral b e) `elem` ownMisbeliefs) (stepEff s)
+          advancesDesire s
+            | isUnexecuted plan (stepId s) = False
+            | any (\f -> frameCharacter f == c && frameFinal f == Just (stepId s) && unifiesDesire (resolvedGoal plan f)) (framesOf plan c) = True
+            | c `notElem` stepActors s = False
+            | otherwise =
+                any (\e -> litPositive e && unifiesDesire e) (map (resolveLiteral b) (stepEff s))
+                  || any (\l -> linkFrom l == stepId s && litPositive (linkCond l) && unifiesDesire (linkCond l)) (Set.toList (planLinks plan))
+          walk _ n [] = n
+          walk seenRealization n (s : ss)
+            | realizes s = walk True n ss
+            | not seenRealization && advancesDesire s = walk seenRealization (n + 1) ss
+            | otherwise = walk seenRealization n ss
+       in walk False 0 (linearize plan)

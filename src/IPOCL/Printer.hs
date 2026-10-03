@@ -82,9 +82,10 @@ printPreference (Preference rule strength) = sexp (ruleParts ++ strengthParts)
       ServesProtagonist c -> ["serves-protagonist", symbolText c]
       MaxBackstory n -> ["max-backstory", showT n]
       MisbeliefBlocks -> ["misbelief-blocks"]
+      RealizationBeforeDesireProgress -> ["realization-before-desire-progress"]
     strengthParts = case strength of
       Hard -> [":hard"]
-      Soft 10 -> []
+      Soft w | w == defaultPrefWeight rule -> []
       Soft w -> [":weight", showT w]
 
 printVar :: Var -> Text

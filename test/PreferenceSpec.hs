@@ -3,11 +3,15 @@ module PreferenceSpec (spec) where
 import Control.Monad (forM_)
 import Data.IntMap.Strict qualified as IM
 import Data.Text (Text)
+import Data.Text qualified as T
 import Helpers
 import IPOCL
+import IPOCL.Domains.Aladdin
 import IPOCL.Domains.Bribe
 import IPOCL.Domains.Tiny
+import IPOCL.Parser
 import IPOCL.Preferences
+import IPOCL.Printer
 import IPOCL.Syntax
 import SmallDomains
 import Test.Hspec
@@ -112,3 +116,24 @@ spec = do
       hardViolated bribeProblem [hard NoRepeatSteps] twice `shouldBe` True
       hardViolated bribeProblem [soft NoRepeatSteps] twice `shouldBe` False
       softPenalty bribeProblem [Preference NoRepeatSteps (Soft 7)] twice `shouldBe` 7
+  describe "realization-before-desire-progress" $ do
+    it "defaults to soft weight 50" $ do
+      p <-
+        loadProblem "domains/misbelief.ipocl" "domains/misbelief-problem.ipocl"
+          >>= either (\e -> expectationFailure (T.unpack e) >> error "unreachable") pure
+      parseProblem (problemDomain p) "p" (printProblem (p {problemPreferences = [Preference RealizationBeforeDesireProgress (Soft 50)]}))
+        `shouldBe` Right (p {problemPreferences = [Preference RealizationBeforeDesireProgress (Soft 50)]})
+    it "is a no-op without a protagonist" $ do
+      let cfg = defaultSolveConfig {cfgMaxExpanded = Just 5000}
+          plain = resultExpanded (solvePure cfg aladdinProblem)
+          pref = resultExpanded (solvePure cfg (aladdinProblem {problemPreferences = [Preference RealizationBeforeDesireProgress (Soft 50)]}))
+      pref `shouldBe` plain
+    it "does not hard-prune partial plans" $ do
+      story <- firstStory bribeProblem
+      hardViolated bribeProblem [hard RealizationBeforeDesireProgress] story `shouldBe` False
+    it "counts zero on the misbelief Story with Realization before the Desire Step" $ do
+      p <-
+        loadProblem "domains/misbelief.ipocl" "domains/misbelief-problem.ipocl"
+          >>= either (\e -> expectationFailure (T.unpack e) >> error "unreachable") pure
+      s <- firstStory p
+      violations p s RealizationBeforeDesireProgress `shouldBe` 0
