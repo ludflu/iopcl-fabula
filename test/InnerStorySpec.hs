@@ -112,6 +112,28 @@ spec = describe "Protagonist, Desire and Misbeliefs" $ do
       length ss `shouldSatisfy` (> 1)
       mapM_ (\s -> any (\f -> frameCharacter f == "ruby" && resolvedGoal s f == lit "reunited" ["ruby", "henry"]) (IM.elems (planFrames s)) `shouldBe` True) ss
 
+  describe "full-scale Aladdin Story Genius" $ do
+    it "loads with clean checkProblem" $ do
+      p <-
+        loadProblem "domains/aladdin-story-genius.ipocl" "domains/aladdin-story-genius-problem.ipocl"
+          >>= either (\e -> expectationFailure (T.unpack e) >> error "unreachable") pure
+      checkProblem p `shouldBe` []
+      problemProtagonist p `shouldBe` Just "aladdin"
+      problemDesire p `shouldBe` Just (lit "married-to" ["aladdin", "jasmine"])
+    it "narrates misbelief, desire, and one Realization on the first Story" $ do
+      p <-
+        loadProblem "domains/aladdin-story-genius.ipocl" "domains/aladdin-story-genius-problem.ipocl"
+          >>= either (\e -> expectationFailure (T.unpack e) >> error "unreachable") pure
+      let cfg = defaultSolveConfig {cfgMaxExpanded = Just 250000}
+          ss = resultStories (solvePure cfg p)
+      ss `shouldSatisfy` (not . null)
+      let s = case ss of (x : _) -> x; _ -> error "unreachable"
+      s `shouldBeValidFor` p
+      let lines' = T.lines (narrate p s)
+      any ("aladdin believes" `T.isPrefixOf`) lines' `shouldBe` True
+      any ("aladdin wants" `T.isPrefixOf`) lines' `shouldBe` True
+      length (filter ("aladdin realizes" `T.isPrefixOf`) lines') `shouldBe` 1
+
   describe "Aladdin with an inner story" $
     it "commits the dragon's lamp as backstory and narrates one Realization per Story" $ do
       p <-

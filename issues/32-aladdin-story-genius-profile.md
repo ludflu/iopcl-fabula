@@ -20,12 +20,12 @@ Deliver:
 
 **Blocked by:** 13 (Level B), 16 (Protagonist / Misbelief), 17 (Third-rail), 18 (Backstory), 19 (Failed intentions — optional for v1).
 
-**Status:** open
+**Status:** closed
 
-- [ ] Problem loads via **`solve domains/…`** and **`checkProblem`** is clean (warnings documented).
-- [ ] New bench (or documented target) passes in CI alongside **`bench aladdin`**.
-- [ ] At least one **`InnerStorySpec`**-style test on the **full-scale** problem (not only inner cast).
-- [ ] **Result** records expanded/generated/time and a sample narration excerpt.
+- [x] Problem loads via **`solve domains/…`** and **`checkProblem`** is clean (warnings documented).
+- [x] New bench (or documented target) passes in CI alongside **`bench aladdin`**.
+- [x] At least one **`InnerStorySpec`**-style test on the **full-scale** problem (not only inner cast).
+- [x] **Result** records expanded/generated/time and a sample narration excerpt.
 
 **Notes:** Do not change the first Story of **`builtin aladdin`** for seed 0 unless intentionally scoped; this ticket adds a **parallel** acceptance path.
 
@@ -53,4 +53,20 @@ Deliver:
 
 ## Result
 
-*(Fill when closed.)*
+**Domain/problem:** `domains/aladdin-story-genius.ipocl` + `domains/aladdin-story-genius-problem.ipocl` — full Appendix A.1 cast/actions with inner-layer `believes`/`unworthy`, `slay` Realization, blocked `marry`, protagonist/desire/misbelief, `third-rail`, and paper-style `allow-goals` whitelist (lamp via `:possible-backstory`).
+
+**Bench (`cabal bench aladdin-story-genius`, seed 0, `w = 2`, 300 s budget):** first Story **Solved** in **1.3 s**, **27,755** expanded, **72,171** generated. **`cabal bench aladdin`** unchanged (Figure 15 path on `builtin aladdin`).
+
+**Narration excerpt (first Story):**
+
+```
+aladdin believes aladdin is unworthy of a princess.
+aladdin wants aladdin is married to jasmine.
+…
+aladdin slays dragon.
+aladdin realizes it is not the case that aladdin is unworthy of a princess.
+…
+aladdin and jasmine wed in an extravagant ceremony …
+```
+
+**Tests:** `InnerStorySpec` full-scale load + arc narration; `spec.md` §1.1 and §7 note the dual Level B targets.

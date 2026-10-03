@@ -1,0 +1,155 @@
+; Full Appendix A.1 Aladdin with Story Genius inner-layer predicates and
+; actions: a knight who believes himself unworthy cannot marry until a
+; Realization overturns the misbelief (e.g. slaying a monster).
+(define (domain aladdin-story-genius)
+  (:predicate-text
+    (believes ?a ?b) "?a believes ?b"
+    (unworthy ?a) "?a is unworthy of a princess"
+    (alive ?x) "?x is alive"
+    (loves ?a ?b) "?a loves ?b"
+    (has ?a ?b) "?a has ?b"
+    (married-to ?a ?b) "?a is married to ?b"
+    (at ?a ?b) "?a is at ?b")
+
+  (:action travel
+    :parameters (?traveller ?from ?dest)
+    :actors (?traveller)
+    :constraints (and (character ?traveller) (place ?from) (place ?dest))
+    :precondition (and (at ?traveller ?from) (alive ?traveller) (neq ?from ?dest))
+    :effect (and (not (at ?traveller ?from)) (at ?traveller ?dest))
+    :text "?traveller travels from ?from to ?dest.")
+
+  (:action slay
+    :parameters (?slayer ?monster ?place)
+    :actors (?slayer)
+    :constraints (and (knight ?slayer) (monster ?monster) (place ?place))
+    :precondition (and (at ?slayer ?place) (at ?monster ?place) (alive ?slayer) (alive ?monster))
+    :effect (and (not (alive ?monster)) (not (believes ?slayer (unworthy ?slayer))))
+    :text "?slayer slays ?monster.")
+
+  (:action pillage
+    :parameters (?pillager ?body ?thing ?place)
+    :actors (?pillager)
+    :constraints (and (character ?pillager) (character ?body) (thing ?thing) (place ?place))
+    :precondition (and (at ?pillager ?place)
+                       (at ?body ?place)
+                       (has ?body ?thing)
+                       (not (alive ?body))
+                       (alive ?pillager)
+                       (neq ?pillager ?body))
+    :effect (and (not (has ?body ?thing)) (has ?pillager ?thing))
+    :text "?pillager takes ?thing from the dead body of ?body.")
+
+  (:action give
+    :parameters (?giver ?givee ?thing ?place)
+    :actors (?giver)
+    :constraints (and (character ?giver) (character ?givee) (thing ?thing) (place ?place))
+    :precondition (and (at ?giver ?place)
+                       (at ?givee ?place)
+                       (has ?giver ?thing)
+                       (alive ?giver)
+                       (alive ?givee)
+                       (neq ?giver ?givee))
+    :effect (and (not (has ?giver ?thing)) (has ?givee ?thing))
+    :text "?giver hands ?thing to ?givee.")
+
+  (:action summon
+    :parameters (?char ?genie ?lamp ?place)
+    :actors (?char)
+    :constraints (and (character ?char) (genie ?genie) (magic-lamp ?lamp) (place ?place))
+    :precondition (and (at ?char ?place)
+                       (has ?char ?lamp)
+                       (in ?genie ?lamp)
+                       (alive ?char)
+                       (alive ?genie)
+                       (neq ?char ?genie))
+    :effect (and (at ?genie ?place)
+                 (not (in ?genie ?lamp))
+                 (not (confined ?genie))
+                 (controls ?char ?genie ?lamp))
+    :text "?char rubs ?lamp and summons ?genie out of it.")
+
+  (:action love-spell
+    :parameters (?genie ?target ?lover)
+    :actors (?genie)
+    :constraints (and (genie ?genie) (character ?target) (character ?lover))
+    :precondition (and (not (confined ?genie))
+                       (not (loves ?target ?lover))
+                       (alive ?genie)
+                       (alive ?target)
+                       (alive ?lover)
+                       (neq ?genie ?target)
+                       (neq ?genie ?lover)
+                       (neq ?target ?lover))
+    :effect (and (loves ?target ?lover)
+                 (intends ?target (married-to ?target ?lover)))
+    :text "?genie casts a spell on ?target making them fall in love with ?lover.")
+
+  (:action marry
+    :parameters (?groom ?bride ?place)
+    :actors (?groom ?bride)
+    :constraints (and (male ?groom) (female ?bride) (place ?place))
+    :precondition (and (at ?groom ?place)
+                       (at ?bride ?place)
+                       (loves ?groom ?bride)
+                       (loves ?bride ?groom)
+                       (not (believes ?groom (unworthy ?groom)))
+                       (alive ?groom)
+                       (alive ?bride))
+    :effect (and (married ?groom)
+                 (married ?bride)
+                 (not (single ?groom))
+                 (not (single ?bride))
+                 (married-to ?groom ?bride)
+                 (married-to ?bride ?groom))
+    :text "?groom and ?bride wed in an extravagant ceremony.")
+
+  (:action fall-in-love
+    :parameters (?male ?female ?place)
+    :actors (?male)
+    :happening t
+    :constraints (and (male ?male) (female ?female) (place ?place))
+    :precondition (and (at ?male ?place)
+                       (at ?female ?place)
+                       (single ?male)
+                       (alive ?male)
+                       (alive ?female)
+                       (not (loves ?male ?female))
+                       (not (loves ?female ?male))
+                       (beautiful ?female))
+    :effect (and (loves ?male ?female)
+                 (intends ?male (married-to ?male ?female)))
+    :text "?male sees ?female and instantly falls in love.")
+
+  (:action order
+    :parameters (?king ?knight ?place ?objective)
+    :actors (?king)
+    :constraints (and (king ?king) (knight ?knight) (place ?place))
+    :precondition (and (at ?king ?place)
+                       (at ?knight ?place)
+                       (alive ?king)
+                       (alive ?knight)
+                       (loyal-to ?knight ?king))
+    :effect (intends ?knight ?objective)
+    :text "?king orders ?knight.")
+
+  (:action command
+    :parameters (?char ?genie ?lamp ?objective)
+    :actors (?char)
+    :constraints (and (character ?char) (genie ?genie) (magic-lamp ?lamp))
+    :precondition (and (has ?char ?lamp)
+                       (controls ?char ?genie ?lamp)
+                       (alive ?char)
+                       (alive ?genie)
+                       (neq ?char ?genie))
+    :effect (intends ?genie ?objective)
+    :text "?char uses ?lamp to command ?genie.")
+
+  (:action appear-threatening
+    :parameters (?monster ?char ?place)
+    :actors (?monster)
+    :happening t
+    :constraints (and (monster ?monster) (character ?char) (place ?place))
+    :precondition (and (at ?monster ?place) (at ?char ?place) (scary ?monster) (neq ?monster ?char))
+    :effect (intends ?char (not (alive ?monster)))
+    :text "?monster appears threatening to ?char."))

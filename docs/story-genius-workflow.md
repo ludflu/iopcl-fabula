@@ -104,4 +104,4 @@ narrative-planning story-genius domains/misbelief.ipocl domains/misbelief-proble
 - Misbelief turning points and **`misbelief-blocks`**: issue 19; failed attempts: issue 19 / ADR-0003
 - Ticking clocks: **`docs/adr/0005-ticking-clocks-need-milestones.md`**
 
-When **`aladdin-story-genius`** lands (issue 32), add it to the example list here as the full-scale Cron arc demo.
+Full-scale Cron arc demo: **`aladdin-story-genius`** (`domains/aladdin-story-genius*.ipocl`, `cabal bench aladdin-story-genius`).

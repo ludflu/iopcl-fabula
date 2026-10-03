@@ -122,6 +122,18 @@ benchmark aladdin
         text,
         narrative-planning
 
+benchmark aladdin-story-genius
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   bench
+    main-is:          AladdinStoryGenius.hs
+    ghc-options:      -rtsopts
+    build-depends:
+        base,
+        containers,
+        text,
+        narrative-planning
+
 benchmark weight-sweep
     import:           warnings
     type:             exitcode-stdio-1.0
