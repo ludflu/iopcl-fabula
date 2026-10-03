@@ -17,14 +17,14 @@
 
 **Blocked by:** 09 (Heuristic search), 25 (Drop children with unrepairable threats eagerly).
 
-**Status:** open
+**Status:** done
 
-- [ ] Tiny, Bribe and motivated Tower each give a Story that passes `validatePlan`.
-- [ ] The same seed gives the same Stories and counts.
-- [ ] Unmotivated Tower (no believable Story) ends `Exhausted`, because the root becomes exhausted.
-- [ ] `--count 3` on Bribe returns distinct Stories, or as many as exist.
-- [ ] Aladdin results within 1,000,000 expansions (found or not, time, expansions) are recorded below for seeds 0, 1 and 2.
-- [ ] hlint is clean, and all tests pass.
+- [x] Tiny, Bribe and motivated Tower each give a Story that passes `validatePlan`.
+- [x] The same seed gives the same Stories and counts.
+- [x] Unmotivated Tower (no believable Story) ends `Exhausted`, because the root becomes exhausted.
+- [x] `--count 3` on Bribe returns distinct Stories, or as many as exist.
+- [x] Aladdin results within 1,000,000 expansions (found or not, time, expansions) are recorded below for seeds 0, 1 and 2.
+- [x] hlint is clean, and all tests pass.
 
 ## Decisions (grilling, recommended answers accepted)
 
@@ -37,3 +37,19 @@
 11. Rewards are 1 for a Story, 0 for a dead end, and `1/(1+h)` at the cap. Stories found in rollouts are emitted.
 12. Exhaustion is tracked in the tree, and an exhausted root means truly exhausted.
 13. Every `expand` call counts as an expansion. Randomness comes from an in-house SplitMix seeded by `--seed`.
+
+## Result
+
+Implementation in `IPOCL.Mcts`: persistent `IntMap` tree, UCB1 selection, ε-greedy rollouts with SplitMix64 randomness, back-propagation and exhaustion marking.
+
+Aladdin within 1,000,000 expansions (`--timeout 300`):
+
+| seed | end | expanded | generated |
+|-----:|-----|----------|-----------|
+| 0 | LimitHit | 1,000,000 | 2,254,489 |
+| 1 | LimitHit | 1,000,000 | 2,258,578 |
+| 2 | LimitHit | 1,000,000 | 2,259,705 |
+
+MCTS did not find Aladdin's first Story within the budget on these seeds. For comparison, best-first finds it in ~189,899 expansions (~8.4 s). MCTS is better suited to smaller problems and to returning varied Stories on Bribe (two distinct Stories with `--count 3`).
+
+The MCTS spec tests take most of the suite runtime (~5 min total) because the stream is intentionally unbounded until the root exhausts.

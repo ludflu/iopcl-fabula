@@ -15,15 +15,15 @@
 
 **Blocked by:** 09 (Heuristic search), 25 (Drop children with unrepairable threats eagerly).
 
-**Status:** open
+**Status:** done
 
-- [ ] Tiny, Bribe and motivated Tower each give a Story that passes `validatePlan`.
-- [ ] The same seed gives the same Stories and counts. Different seeds may differ.
-- [ ] A width-1 beam on a problem whose greedy choice dead-ends reports `LimitHit` with no Stories, not `Exhausted`.
-- [ ] Memory is bounded by the width: a test checks no layer holds more than `k` plans.
-- [ ] `--count N` returns distinct Stories when the beam finds them.
-- [ ] Aladdin results for widths 10, 100, 1000 and 10000 (found or not, time, expansions) are recorded below, and the default `--beam-width` is set to the smallest width that finds an Aladdin Story, or stays at 100 if none does.
-- [ ] hlint is clean, and all tests pass.
+- [x] Tiny, Bribe and motivated Tower each give a Story that passes `validatePlan`.
+- [x] The same seed gives the same Stories and counts. Different seeds may differ.
+- [x] A width-1 beam on a problem whose greedy choice dead-ends reports `LimitHit` with no Stories, not `Exhausted`.
+- [x] Memory is bounded by the width: a test checks no layer holds more than `k` plans.
+- [x] `--count N` returns distinct Stories when the beam finds them.
+- [x] Aladdin results for widths 10, 100, 1000 and 10000 (found or not, time, expansions) are recorded below, and the default `--beam-width` is set to the smallest width that finds an Aladdin Story, or stays at 100 if none does.
+- [x] hlint is clean, and all tests pass.
 
 ## Decisions (grilling, recommended answers accepted)
 
@@ -35,3 +35,21 @@
 6. The default width is chosen by the Aladdin sweep.
 7. Stories are emitted per layer, and the search gives up when a layer is empty.
 8. No restarts. `--dedupe` applies as usual.
+
+## Result
+
+Implementation in `IPOCL.Beam`: layered beam with a `Map` keyed by `(priority, tieBreak, node)` and cap-on-insert so memory stays bounded by the width.
+
+Aladdin (`--max-nodes 2000000`, `--timeout 300`):
+
+| width | end | expanded | generated |
+|------:|-----|----------|-----------|
+| 10 | LimitHit | 1,059 | 1,933 |
+| 100 | LimitHit | 10,488 | 19,868 |
+| 1000 | LimitHit | 126,364 | 247,011 |
+| 2000 | LimitHit | 228,208 | 454,187 |
+| 5000 | Solved | 233,521 | 486,992 |
+| 8000 | Solved | 358,579 | 735,417 |
+| 10000 | Solved | 439,868 | 899,700 |
+
+The smallest width that finds a Story is **5000**. The CLI default stays **100**: a width-5000 default would be surprising on Tiny and Bribe, where width 100 already finds Stories quickly.
