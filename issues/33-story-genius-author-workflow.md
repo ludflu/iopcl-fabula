@@ -67,4 +67,6 @@ Example commands:
 narrative-planning story-genius misbelief
 narrative-planning story-genius aladdin-inner
 narrative-planning story-genius ticking-clock
+narrative-planning story-genius aladdin-story-genius
+cabal bench aladdin-story-genius
 ```

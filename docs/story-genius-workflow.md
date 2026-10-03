@@ -52,7 +52,7 @@ For very large domains (full **`aladdin.ipocl`**), the wrapper prints a hint to 
 
 ## Example domains (exact commands)
 
-Three worked Story Genius examples ship in **`domains/`**:
+Four worked Story Genius examples ship in **`domains/`** (three small regressions plus full-scale Aladdin):
 
 ### `misbelief` — misbelief blocks the Desire
 
@@ -73,6 +73,16 @@ Fast regression-scale domain with protagonist, desire, misbeliefs, and Realizati
 narrative-planning story-genius aladdin-inner
 # or:
 narrative-planning solve domains/aladdin-inner.ipocl domains/aladdin-inner-problem.ipocl
+```
+
+### `aladdin-story-genius` — full Appendix A.1 cast, Cron arc acceptance
+
+Same protagonist/desire/misbelief pattern as **`aladdin-inner`**, with the full Level B cast and paper-style allow-goals. Level B acceptance: **`cabal bench aladdin-story-genius`** (Figure 15 stays on **`cabal bench aladdin`**).
+
+```bash
+narrative-planning story-genius aladdin-story-genius
+# or:
+narrative-planning solve domains/aladdin-story-genius.ipocl domains/aladdin-story-genius-problem.ipocl
 ```
 
 ### `ticking-clock` — escalation / milestone prototype
@@ -104,4 +114,3 @@ narrative-planning story-genius domains/misbelief.ipocl domains/misbelief-proble
 - Misbelief turning points and **`misbelief-blocks`**: issue 19; failed attempts: issue 19 / ADR-0003
 - Ticking clocks: **`docs/adr/0005-ticking-clocks-need-milestones.md`**
 
-Full-scale Cron arc demo: **`aladdin-story-genius`** (`domains/aladdin-story-genius*.ipocl`, `cabal bench aladdin-story-genius`).
