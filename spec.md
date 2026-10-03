@@ -298,7 +298,10 @@ to be settled first.
 
 ### 4.10 Search (`IPOCL.Search`)
 - **Weighted A\***: `f = g + w·h`, where `g` is the number of Steps plus the number of Frames and the default is `w = 2`.
-  `--greedy` sets `f = h`.
+  `--greedy` sets `f = h`. For large problems where fewer node expansions matter more than matching historical benchmark
+  counts, prefer **`--weight 1`** (or **`1.5`**) over raising `w`; the default **`w = 2`** stays for CLI and Level B parity.
+  The CLI's default **200k** expansion cap can report `LimitHit` for high `w` or `--greedy` even when a longer run would
+  succeed (`cabal bench weight-sweep` uses no cap).
 - **Duplicate detection** (`--dedupe`, off by default): a 128-bit digest of each plan's canonical signature is stored, and a
   child is dropped if its digest has been seen. Because each plan refines exactly one chosen flaw, the search tree is nearly
   systematic. On Aladdin, dedupe removed no plans in 20k expansions and doubled the cost per node (ticket 12).

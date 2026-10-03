@@ -10,12 +10,12 @@
 
 **Blocked by:** 09 (Heuristic search), 13 (Level B).
 
-**Status:** open
+**Status:** closed
 
-- [ ] `cabal bench weight-sweep` (or documented `cabal run` invocations) reproduces the Result table.
-- [ ] Ticket **Result** records all runs; notes that CLI **`defaultSolveConfig`** caps at **200k expanded**, so **`w ≥ 3`**, **`w = 5`**, and **`--greedy`** hit `LimitHit` under the **CLI** unless `--max-nodes` is raised (bench must use no cap).
-- [ ] **Default `w` decision** documented in Result and **spec.md** §4.10 (see grill selection below).
-- [ ] `cabal test spec` passes; no change to `defaultSolveConfig.cfgWeight` unless the grill decision is revisited.
+- [x] `cabal bench weight-sweep` (or documented `cabal run` invocations) reproduces the Result table.
+- [x] Ticket **Result** records all runs; notes that CLI **`defaultSolveConfig`** caps at **200k expanded**, so **`w ≥ 3`**, **`w = 5`**, and **`--greedy`** hit `LimitHit` under the **CLI** unless `--max-nodes` is raised (bench must use no cap).
+- [x] **Default `w` decision** documented in Result and **spec.md** §4.10 (see grill selection below).
+- [x] `cabal test spec` passes; no change to `defaultSolveConfig.cfgWeight` unless the grill decision is revisited.
 
 **Notes:** Tickets **29** and **31** should report Aladdin before/after at **`w = 2`** (canonical bench) and note any **`w = 1`** interaction if expansions move. Beam search remains spec fallback (1), out of scope.
 
@@ -43,15 +43,19 @@
 
 ## Result
 
-*(Fill when closed.)*
+**Run:** `cabal bench weight-sweep --benchmark-options='--seed 0'` (Level B: additive heuristic, 300 s timeout, no expansion cap, `cfgCount = 1`).
 
-**Preview (seed 0, no expansion cap, additive heuristic):**
+| W | SearchEnd | Expanded | Generated | wall s |
+|---|-----------|----------|-----------|--------|
+| 1 | Solved | 100,246 | 233,877 | 4.1 |
+| 1.5 | Solved | 119,544 | 286,257 | 5.3 |
+| 2 | Solved | 189,899 | 452,146 | 9.0 |
+| 3 | Solved | 365,905 | 861,193 | 19.7 |
+| 5 | Solved | 623,011 | 1,388,318 | 34.7 |
+| greedy | Solved | 1,686,648 | 3,487,206 | 94.1 |
 
-| W | End | Expanded | Generated |
-|---|-----|----------|-----------|
-| 1 | Solved | 100,246 | 233,877 |
-| 1.5 | Solved | 119,544 | 286,257 |
-| 2 | Solved | 189,899 | 452,146 |
-| 3 | Solved | 365,905 | 861,193 |
-| 5 | LimitHit @ 500k | 500,000 | 1,121,161 |
-| greedy | LimitHit @ 500k | 500,000 | 1,055,497 |
+First-Story Frame set at **`w = 1`** matches **`w = 2`** on seed 0 (same shorter Jafar/dragon/lamp Story as ticket 13).
+
+**CLI vs bench:** `defaultSolveConfig` and the narrative-planning CLI keep **`cfgMaxExpanded = Just 200000`**. On seed 0, **`w = 3`**, **`w = 5`**, and **`--greedy`** therefore report **`LimitHit`** at 200k expanded unless the user passes **`--max-nodes`** high enough or omits the cap; the sweep above uses **no cap** so high-`w` behaviour is visible.
+
+**Default `w`:** Keep **`cfgWeight = 2`** and Level B at **`w = 2`** for comparable baselines. For large problems where expansion cost dominates, use **`--weight 1`** (or **`1.5`**) as documented in **spec.md** §4.10.

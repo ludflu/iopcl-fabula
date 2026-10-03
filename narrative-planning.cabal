@@ -117,3 +117,14 @@ benchmark aladdin
         containers,
         text,
         narrative-planning
+
+benchmark weight-sweep
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   bench
+    main-is:          WeightSweep.hs
+    ghc-options:      -threaded -rtsopts
+    build-depends:
+        base,
+        text,
+        narrative-planning

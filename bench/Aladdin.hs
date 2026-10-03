@@ -1,5 +1,6 @@
 -- | Acceptance Level B: the full Aladdin problem of Appendix A.1, with the
 -- paper's preferences, solved in under five minutes.
+-- Weight tuning: @cabal bench weight-sweep@ (see bench/WeightSweep.hs).
 module Main (main) where
 
 import Control.Monad (forM_, unless)
