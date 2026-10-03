@@ -122,10 +122,14 @@ spec = do
       property $ \(GenProblem p) -> roundTrip p === Right p
 
   describe "solve CLI" $ do
-    it "solves the Tower files in POCL mode" $ do
-      (code, out, _) <- readProcessWithExitCode "narrative-planning" ["solve", domainPath "tower", problemPath "tower", "--mode", "pocl"] ""
+    it "solves the motivated Tower files" $ do
+      (code, out, _) <- readProcessWithExitCode "narrative-planning" ["solve", domainPath "motivated-tower", problemPath "motivated-tower"] ""
       code `shouldBe` ExitSuccess
       out `shouldContain` "Story 1"
+    it "no longer accepts a planning mode" $ do
+      (code, _, err) <- readProcessWithExitCode "narrative-planning" ["solve", domainPath "tower", problemPath "tower", "--mode", "pocl"] ""
+      code `shouldBe` ExitFailure 1
+      err `shouldContain` "Invalid option"
     it "reports load errors on stderr and exits 1" $ do
       (code, out, err) <- readProcessWithExitCode "narrative-planning" ["solve", domainPath "tower", domainPath "tower"] ""
       code `shouldBe` ExitFailure 1

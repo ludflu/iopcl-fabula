@@ -9,7 +9,6 @@ module IPOCL.Plan
   , Frame (..)
   , Plan (..)
   , Flaw (..)
-  , Mode (..)
   , initialPlan
   , planStepList
   , actionSteps
@@ -120,9 +119,6 @@ data Flaw
   | IntentionalThreat !FrameId !FrameId
   | OpenAttempt !StepId
   -- ^ A ':fail-first' pseudo-step that still needs its failed Frame.
-  deriving (Eq, Show)
-
-data Mode = IPOCL | POCL
   deriving (Eq, Show)
 
 initialPlan :: Problem -> Plan

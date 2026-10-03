@@ -16,23 +16,23 @@ mentions needle = any (needle `T.isInfixOf`)
 spec :: Spec
 spec = do
   it "rejects a plan whose precondition has lost its causal link" $ do
-    plan <- firstStory POCL tinyProblem
+    plan <- firstStory tinyProblem
     let broken = plan {planLinks = Set.filter ((/= goalStepId) . linkTo) (planLinks plan)}
-    validatePlan POCL tinyProblem broken `shouldNotBe` []
+    validatePlan tinyProblem broken `shouldNotBe` []
   it "rejects a plan with a step missing from the ordering towards the goal" $ do
-    plan <- firstStory POCL tinyProblem
+    plan <- firstStory tinyProblem
     let noSteps = plan {planSteps = IM.filterWithKey (\k _ -> k <= goalStepId) (planSteps plan)}
-    validatePlan POCL tinyProblem noSteps `shouldNotBe` []
-  describe "in IPOCL mode" $ do
+    validatePlan tinyProblem noSteps `shouldNotBe` []
+  describe "intentionality" $ do
     it "rejects Orphans" $ do
-      plan <- firstStory IPOCL motivatedTowerProblem
-      validatePlan IPOCL motivatedTowerProblem plan {planFrames = IM.empty}
+      plan <- firstStory motivatedTowerProblem
+      validatePlan motivatedTowerProblem plan {planFrames = IM.empty}
         `shouldSatisfy` mentions "is not intentional"
     it "rejects an unmotivated Frame" $ do
-      plan <- firstStory IPOCL motivatedTowerProblem
-      validatePlan IPOCL motivatedTowerProblem plan {planFrames = IM.map (\f -> f {frameMotivator = Nothing}) (planFrames plan)}
+      plan <- firstStory motivatedTowerProblem
+      validatePlan motivatedTowerProblem plan {planFrames = IM.map (\f -> f {frameMotivator = Nothing}) (planFrames plan)}
         `shouldSatisfy` mentions "has no motivating step"
     it "rejects a Motivating step that does not precede the Interval" $ do
-      plan <- firstStory IPOCL motivatedTowerProblem
-      validatePlan IPOCL motivatedTowerProblem plan {planFrames = IM.map (\f -> f {frameMotivator = frameFinal f}) (planFrames plan)}
+      plan <- firstStory motivatedTowerProblem
+      validatePlan motivatedTowerProblem plan {planFrames = IM.map (\f -> f {frameMotivator = frameFinal f}) (planFrames plan)}
         `shouldSatisfy` mentions "motivating step does not precede"

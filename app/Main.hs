@@ -28,8 +28,7 @@ data Command
   | SolveFiles FilePath FilePath SolveOpts
 
 data SolveOpts = SolveOpts
-  { optMode :: Mode
-  , optMaxNodes :: Maybe Int
+  { optMaxNodes :: Maybe Int
   , optTimeout :: Maybe Double
   , optCount :: Int
   , optTrace :: Maybe FilePath
@@ -55,8 +54,7 @@ builtins =
 solveOpts :: Parser SolveOpts
 solveOpts =
   SolveOpts
-    <$> option (eitherReader readMode) (long "mode" <> metavar "ipocl|pocl" <> value IPOCL <> help "Planning mode (default ipocl)")
-    <*> optional (option auto (long "max-nodes" <> metavar "N" <> help "Maximum nodes to expand"))
+    <$> optional (option auto (long "max-nodes" <> metavar "N" <> help "Maximum nodes to expand"))
     <*> optional (option auto (long "timeout" <> metavar "SECONDS" <> help "Wall-clock limit"))
     <*> option auto (long "count" <> metavar "N" <> value 1 <> help "Number of distinct stories")
     <*> optional (strOption (long "trace" <> metavar "FILE" <> help "Write a search trace to FILE"))
@@ -69,10 +67,6 @@ solveOpts =
     <*> switch (long "cards" <> help "Print a Story Genius scene card for each Step")
     <*> optional (strOption (long "dot" <> metavar "FILE" <> help "Write Story 1 as Graphviz to FILE; Story N>1 goes to FILE with -N before the extension"))
   where
-    readMode = \case
-      "ipocl" -> Right IPOCL
-      "pocl" -> Right POCL
-      m -> Left ("unknown mode " <> m)
     readHeuristic = \case
       "default" -> Right Additive
       "paper" -> Right Paper
@@ -107,8 +101,7 @@ run p opts = do
   mapM_ (TIO.hPutStrLn stderr . ("warning: " <>)) (problemWarnings p)
   let cfg =
         defaultSolveConfig
-          { cfgMode = optMode opts
-          , cfgMaxExpanded = optMaxNodes opts <|> cfgMaxExpanded defaultSolveConfig
+          { cfgMaxExpanded = optMaxNodes opts <|> cfgMaxExpanded defaultSolveConfig
           , cfgTimeout = optTimeout opts
           , cfgCount = optCount opts
           , cfgHeuristic = optHeuristic opts
@@ -131,7 +124,7 @@ run p opts = do
       TIO.putStrLn "Scene cards:"
       TIO.putStr (T.unlines (map ("  " <>) (T.lines (renderCards p plan))))
     forM_ (optDot opts) $ \file -> TIO.writeFile (dotFileFor file i) (planToDot p plan)
-    let problems = validatePlan (optMode opts) p plan
+    let problems = validatePlan p plan
     unless (null problems) $ do
       TIO.putStrLn "INVALID:"
       mapM_ (TIO.putStrLn . ("  " <>)) problems

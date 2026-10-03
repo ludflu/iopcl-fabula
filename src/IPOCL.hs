@@ -22,8 +22,7 @@ import IPOCL.Signature
 import IPOCL.Syntax
 
 data SolveConfig = SolveConfig
-  { cfgMode :: !Mode
-  , cfgMaxExpanded :: !(Maybe Int)
+  { cfgMaxExpanded :: !(Maybe Int)
   , cfgTimeout :: !(Maybe Double)
   -- ^ Seconds of wall-clock time.
   , cfgCount :: !Int
@@ -46,8 +45,7 @@ data SolveConfig = SolveConfig
 defaultSolveConfig :: SolveConfig
 defaultSolveConfig =
   SolveConfig
-    { cfgMode = IPOCL
-    , cfgMaxExpanded = Just 200000
+    { cfgMaxExpanded = Just 200000
     , cfgTimeout = Nothing
     , cfgCount = 1
     , cfgTrace = Nothing
@@ -81,12 +79,12 @@ events cfg p = distinct Set.empty (search env searchCfg (initialPlan p))
         | otherwise -> ev : distinct (Set.insert (storySignature plan) seen) rest
       ev : rest -> ev : distinct seen rest
     r = problemReachability p
-    env = mkEnvWith (cfgMode cfg) p (reachableActions r)
+    env = mkEnvWith p (reachableActions r)
     searchCfg =
       defaultSearchConfig
         { scWeight = cfgWeight cfg
         , scGreedy = cfgGreedy cfg
-        , scHeuristic = \plan -> (+ softPenalty p (problemPreferences p) plan) <$> heuristic (cfgHeuristic cfg) r env plan
+        , scHeuristic = \plan -> (+ softPenalty p (problemPreferences p) plan) <$> heuristic (cfgHeuristic cfg) r plan
         , scSeed = cfgSeed cfg
         , scSignature = if cfgDedupe cfg then Just planSignature else Nothing
         , scCost = case cfgHeuristic cfg of

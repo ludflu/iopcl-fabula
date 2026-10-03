@@ -71,7 +71,7 @@ main = do
         backstoryProblems ++
         [ "no Story within the budget" | null (resultStories first) ]
           ++ [ "first Story took longer than 5 minutes" | firstDone - start > budget ]
-          ++ [ "Story " <> tshow i <> ": " <> e | (i, s) <- zip [1 :: Int ..] stories, e <- validatePlan IPOCL aladdinProblem s ]
+          ++ [ "Story " <> tshow i <> ": " <> e | (i, s) <- zip [1 :: Int ..] stories, e <- validatePlan aladdinProblem s ]
           ++ [ "no Story among the first five has the Frames of Figure 15" | figure15 `notElem` map frameSet stories ]
   forM_ (take 1 (resultStories first)) (T.putStrLn . renderPlan)
   forM_ (zip [1 :: Int ..] stories) $ \(i, s) ->

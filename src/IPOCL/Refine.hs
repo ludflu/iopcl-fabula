@@ -35,7 +35,6 @@ import IPOCL.Syntax
 
 data Env = Env
   { envProblem :: !Problem
-  , envMode :: !Mode
   , envActions :: ![GroundAction]
   , envEffectIndex :: !(Map (Bool, Text) [(GroundAction, Literal)])
   , envAttemptIndex :: Map (Bool, Text) [(GroundAction, Literal)]
@@ -46,14 +45,13 @@ data Env = Env
   -- ^ Hard pruning (e.g. hard Author preferences); 'True' drops the plan.
   }
 
-mkEnv :: Mode -> Problem -> Env
-mkEnv mode p = mkEnvWith mode p (groundActions p)
+mkEnv :: Problem -> Env
+mkEnv p = mkEnvWith p (groundActions p)
 
-mkEnvWith :: Mode -> Problem -> [GroundAction] -> Env
-mkEnvWith mode p gas =
+mkEnvWith :: Problem -> [GroundAction] -> Env
+mkEnvWith p gas =
   Env
     { envProblem = p
-    , envMode = mode
     , envActions = gas
     , envEffectIndex = effectIndex gas
     , envAttemptIndex = effectIndex (groundActions p)
@@ -74,12 +72,12 @@ data Expansion
   | Refined !Flaw ![Child]
 
 -- | All flaws of a plan: threats first, then the rest in tie-break order.
-flaws :: Env -> Plan -> [Flaw]
-flaws env plan =
+flaws :: Plan -> [Flaw]
+flaws plan =
   causalThreats plan
     ++ intentionalThreats plan
     ++ [OpenMotivation (frameId f) | f <- IM.elems (planFrames plan), isNothing (frameMotivator f)]
-    ++ [OpenAttempt s | envMode env == IPOCL, s <- planOpenAttempts plan]
+    ++ [OpenAttempt s | s <- planOpenAttempts plan]
     ++ [OpenCondition s l | (s, l) <- planOpenConds plan]
     ++ [IntentFlaw s c | (s, c) <- planPendingIntent plan]
 
@@ -92,9 +90,9 @@ isThreat = \case
 -- | Select a flaw and produce its children, or recognise a solution / dead end.
 -- Threats are repaired first; otherwise the flaw with the fewest children.
 expand :: Env -> Plan -> Expansion
-expand env plan = case flaws env plan of
+expand env plan = case flaws plan of
   []
-    | envMode env == IPOCL && not (null (orphans plan)) -> DeadEnd Nothing
+    | not (null (orphans plan)) -> DeadEnd Nothing
     | finalViolated (envProblem env) (problemPreferences (envProblem env)) plan -> DeadEnd Nothing
     | otherwise -> Solution
   f : _ | isThreat f -> result f (refine env plan f)
@@ -256,10 +254,8 @@ openCondition env plan0 sNeed p =
     -- A Required Frame's pseudo-step is supported only by the final Step of a
     -- Frame of its Character for this goal (ADR-0004).
     fulfils pl sAdd = case IM.lookup sNeed (planRequired pl) of
-      Just c
-        | envMode env == IPOCL ->
-            any (\f -> frameFinal f == Just sAdd && resolvedGoal pl f == resolveLiteral (planBindings pl) p) (framesOf pl c)
-      _ -> True
+      Just c -> any (\f -> frameFinal f == Just sAdd && resolvedGoal pl f == resolveLiteral (planBindings pl) p) (framesOf pl c)
+      Nothing -> True
     link (Establisher pl sAdd _) = do
       o <- addOrder sAdd sNeed (planOrder pl)
       let l = CausalLink sAdd p sNeed
@@ -338,7 +334,7 @@ orderFailFirst plan0 = foldM one plan0 (IM.toList (planFailFirst plan0))
 afterEstablish :: Env -> Establisher -> Plan -> [(Plan, Text)]
 afterEstablish env est pl0 =
   [ (pl'', note)
-  | (pl', note) <- if estNew est then discoverFrames env (estStep est) pl else [(pl, "")]
+  | (pl', note) <- if estNew est then discoverFrames (estStep est) pl else [(pl, "")]
   , Just pl'' <- [finalize env pl']
   ]
   where
@@ -350,15 +346,12 @@ afterEstablish env est pl0 =
 finalize :: Env -> Plan -> Maybe Plan
 finalize env pl0 = do
   pl <- orderFailFirst pl0 >>= keep env
-  if envMode env == POCL
-    then Just pl
-    else
-      let fresh = nub [c | c <- intentCandidates pl, not (Set.member c (planProposedIntent pl))]
-       in Just
-            pl
-              { planPendingIntent = fresh ++ planPendingIntent pl
-              , planProposedIntent = foldr Set.insert (planProposedIntent pl) fresh
-              }
+  let fresh = nub [c | c <- intentCandidates pl, not (Set.member c (planProposedIntent pl))]
+  Just
+    pl
+      { planPendingIntent = fresh ++ planPendingIntent pl
+      , planProposedIntent = foldr Set.insert (planProposedIntent pl) fresh
+      }
 
 -- | Step-Frame pairs that could explain the Step (ADR-0002): the Step shares
 -- the Frame's Character and either (1) causally supports a member of the
@@ -415,9 +408,9 @@ keep env pl = if envPrune env pl then Nothing else Just (recheckThreats pl)
 
 -- | For a new non-Happening Step, each Actor independently either intends one
 -- of the Step's effects (a new Frame with this Step as its final Step) or not.
-discoverFrames :: Env -> StepId -> Plan -> [(Plan, Text)]
-discoverFrames env s plan = case IM.lookup s (planSteps plan) of
-  Just st | envMode env == IPOCL, not (stepHappening st) -> foldM (choose st) (plan, "") (stepActors st)
+discoverFrames :: StepId -> Plan -> [(Plan, Text)]
+discoverFrames s plan = case IM.lookup s (planSteps plan) of
+  Just st | not (stepHappening st) -> foldM (choose st) (plan, "") (stepActors st)
   _ -> [(plan, "")]
   where
     choose st (pl, note) actor =

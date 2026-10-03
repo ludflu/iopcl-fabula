@@ -57,21 +57,21 @@ spec :: Spec
 spec = describe "third-rail relevance" $ do
   it "finds the irrelevant side plot without preferences" $ do
     p <- dogProblem
-    s <- firstStory IPOCL p
+    s <- firstStory p
     storyLabels s `shouldMatchList` henryFeeds
     violations p s ThirdRail `shouldBe` 1
     violations p s (ServesProtagonist "henry") `shouldBe` 1
 
   it "drops the side plot under a hard third-rail" $ do
     p <- withPrefs [hard ThirdRail] <$> dogProblem
-    s <- firstStory IPOCL p
+    s <- firstStory p
     storyLabels s `shouldMatchList` ruby'sStory
-    s `shouldBeValidFor` (IPOCL, p)
+    s `shouldBeValidFor` p
     violations p s ThirdRail `shouldBe` 0
 
   it "never prunes a partial plan under a hard third-rail" $ do
     p <- withPrefs [hard ThirdRail] <$> dogProblem
-    let env = mkEnv IPOCL p
+    let env = mkEnv p
         start = initialPlan p
         partial =
           [ childPlan c
@@ -91,26 +91,26 @@ spec = describe "third-rail relevance" $ do
 
   it "rejects a complete plan at the goal test" $ do
     plain <- dogProblem
-    s <- firstStory IPOCL plain
+    s <- firstStory plain
     let p = withPrefs [hard ThirdRail] plain
-        env = mkEnv IPOCL p
+        env = mkEnv p
     case expand env s of
       DeadEnd Nothing -> pure ()
       _ -> expectationFailure "expected a dead end"
 
   it "keeps only Frames of a Character that serve the Protagonist under a hard serves-protagonist" $ do
     p <- withPrefs [hard (ServesProtagonist "henry")] <$> dogProblem
-    s <- firstStory IPOCL p
+    s <- firstStory p
     storyLabels s `shouldMatchList` ruby'sStory
     violations p s (ServesProtagonist "henry") `shouldBe` 0
 
   it "charges a soft serves-protagonist for each Frame that does not serve" $ do
     plain <- dogProblem
-    s <- firstStory IPOCL plain
+    s <- firstStory plain
     softPenalty plain [soft (ServesProtagonist "henry")] s `shouldBe` 10
     softPenalty plain [soft (ServesProtagonist "ruby")] s `shouldBe` 0
     let p = withPrefs [soft (ServesProtagonist "henry")] plain
-    s' <- firstStory IPOCL p
+    s' <- firstStory p
     storyLabels s' `shouldMatchList` ruby'sStory
 
   it "needs a Protagonist" $ do
@@ -122,11 +122,11 @@ spec = describe "third-rail relevance" $ do
   describe "internal-change lint" $ do
     it "is quiet when every internal change leads to action" $ do
       p <- withPrefs [hard ThirdRail] <$> dogProblem
-      s <- firstStory IPOCL p
+      s <- firstStory p
       planWarnings p s `shouldBe` []
     it "warns about a Realization that leads to no action" $ do
       p <- dogProblem
-      s <- firstStory IPOCL p
+      s <- firstStory p
       let cut = s {planLinks = Set.filter (not . fromRealization s) (planLinks s)}
       planWarnings p cut `shouldBe` ["near-loss(ruby, henry): the internal change of ruby leads to no action by ruby"]
   where

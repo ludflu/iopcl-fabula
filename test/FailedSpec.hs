@@ -115,8 +115,8 @@ spec = describe "failed Frames" $ do
   describe "planning" $ do
     it "tries and fails while the Misbelief holds, realizes, then succeeds" $ do
       p <- turningPoint
-      s <- firstStory IPOCL p
-      s `shouldBeValidFor` (IPOCL, p)
+      s <- firstStory p
+      s `shouldBeValidFor` p
       storyLabels s `shouldBe` ["confess-love(ruby, henry)", "near-loss(ruby, henry)", "confess-love(ruby, henry)"]
       attemptLabels s `shouldBe` ["confess-love(ruby, henry)"]
       map (resolvedGoal s) (failedFrames s) `shouldBe` [reunited]
@@ -134,7 +134,7 @@ spec = describe "failed Frames" $ do
       length ss `shouldSatisfy` (> 1)
       mapM_
         ( \s -> do
-            s `shouldBeValidFor` (IPOCL, p)
+            s `shouldBeValidFor` p
             let ok = and [O.before (planOrder s) x y | ff <- failedFrames s, sf <- IM.elems (planFrames s), isJust (frameFinal sf), frameGoal sf == frameGoal ff, x <- IS.toList (frameInterval ff), y <- IS.toList (frameInterval sf)]
             ok `shouldBe` True
         )
@@ -149,16 +149,16 @@ spec = describe "failed Frames" $ do
       resultEnd (limited (failFirst p)) `shouldBe` Exhausted
     it "lets an unexecuted Step establish nothing" $ do
       p <- turningPoint
-      s <- firstStory IPOCL p
-      let env = mkEnv IPOCL p
+      s <- firstStory p
+      let env = mkEnv p
           attempt = IS.findMin (planUnexecuted s)
           reopened = s {planLinks = Set.filter (\l -> linkTo l /= goalStepId) (planLinks s), planOpenConds = [(goalStepId, reunited)]}
           children = refine env reopened (OpenCondition goalStepId reunited)
       length children `shouldSatisfy` (> 0)
       [() | c <- children, l <- Set.toList (planLinks (childPlan c)), linkTo l == goalStepId, linkFrom l == attempt] `shouldBe` []
     it "needs a Frame only for the failed Frame's Character in a joint attempt" $ do
-      s <- firstStory IPOCL proposalProblem
-      s `shouldBeValidFor` (IPOCL, proposalProblem)
+      s <- firstStory proposalProblem
+      s `shouldBeValidFor` proposalProblem
       storyLabels s `shouldBe` ["marry(aladdin, jasmine)", "fall-for(jasmine, aladdin)", "marry(aladdin, jasmine)"]
       [frameCharacter f | f <- failedFrames s] `shouldBe` ["aladdin"]
       orphans s `shouldBe` []
@@ -174,7 +174,7 @@ spec = describe "failed Frames" $ do
       p <- preferring Hard <$> turningPoint
       blockers p `shouldSatisfy` all (== "confess-love(ruby, henry)")
       length (blockers p) `shouldSatisfy` (> 0)
-      mapM_ (`shouldBeValidFor` (IPOCL, p)) (stories 4 p)
+      mapM_ (`shouldBeValidFor` p) (stories 4 p)
     it "puts the Misbelief blocks first when soft" $ do
       plain <- elopeProblem <$> turningPoint
       p <- preferring (Soft 10) <$> turningPoint
@@ -185,22 +185,22 @@ spec = describe "failed Frames" $ do
   describe "validation and rendering" $ do
     it "checks failed Frames independently of the search" $ do
       p <- turningPoint
-      s <- firstStory IPOCL p
+      s <- firstStory p
       let attempt = IS.findMin (planUnexecuted s)
           unblocked = s {planLinks = Set.filter ((/= attempt) . linkTo) (planLinks s)}
           executed = s {planUnexecuted = IS.empty}
           aimless = s {planFrames = IM.map (\f -> if isJust (frameAttempt f) then f {frameGoal = lit "loves" ["ruby", "henry"]} else f) (planFrames s)}
-      validatePlan IPOCL p unblocked `shouldContain` ["attempted step confess-love(ruby, henry) has 0 blocked preconditions, not 1"]
-      validatePlan IPOCL p executed `shouldContain` ["the unexecuted steps are not the attempted steps of failed frames"]
-      validatePlan IPOCL p aimless `shouldContain` ["frame ruby wants loves(ruby, henry)'s attempted step does not aim at its goal"]
+      validatePlan p unblocked `shouldContain` ["attempted step confess-love(ruby, henry) has 0 blocked preconditions, not 1"]
+      validatePlan p executed `shouldContain` ["the unexecuted steps are not the attempted steps of failed frames"]
+      validatePlan p aimless `shouldContain` ["frame ruby wants loves(ruby, henry)'s attempted step does not aim at its goal"]
     it "distinguishes failed Frames in story signatures" $ do
       p <- turningPoint
-      s <- firstStory IPOCL p
+      s <- firstStory p
       let succeeded = s {planFrames = IM.map (\f -> f {frameAttempt = Nothing}) (planFrames s), planUnexecuted = IS.empty}
       storySignature succeeded `shouldNotBe` storySignature s
     it "renders attempts in the report, the scene cards and DOT" $ do
       p <- turningPoint
-      s <- firstStory IPOCL p
+      s <- firstStory p
       T.unpack (renderPlan s) `shouldSatisfy` isInfixOf "confess-love(ruby, henry)  (attempt, blocked)"
       T.unpack (renderPlan s) `shouldSatisfy` isInfixOf "ruby wants reunited(ruby, henry) (fails)"
       T.unpack (renderCards p s) `shouldSatisfy` isInfixOf "Scene 1: ruby tries to tell henry she loves him, but ruby believes love is dangerous."

@@ -11,16 +11,16 @@ import IPOCL.Syntax (Problem)
 import IPOCL.Trace
 import Test.Hspec
 
-traceOf :: Mode -> Int -> Problem -> T.Text
-traceOf m n p = T.concat (map formatEvent (take n (search (mkEnv m p) defaultSearchConfig (initialPlan p))))
+traceOf :: Int -> Problem -> T.Text
+traceOf n p = T.concat (map formatEvent (take n (search (mkEnv p) defaultSearchConfig (initialPlan p))))
 
 spec :: Spec
 spec = do
   it "shows the tiny problem's path from the initial plan to the solution" $ do
     golden <- TIO.readFile "test/golden/tiny-trace.txt"
-    traceOf IPOCL 100 tinyProblem `shouldBe` golden
+    traceOf 100 tinyProblem `shouldBe` golden
   it "gives every kind of refinement a readable reason" $ do
-    let t = traceOf IPOCL 2000 bribeProblem
+    let t = traceOf 2000 bribeProblem
     mapM_
       (\needle -> t `shouldSatisfy` (needle `T.isInfixOf`))
       [ "created new step"
