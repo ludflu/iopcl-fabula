@@ -26,6 +26,9 @@ every Frame has a Motivating step.
 |---|---|---|
 | A (first milestone) | Tower variant, Bribe (§4.4), and stories of 5–10 Steps | Solution in < 10 s |
 | B (release target) | Full Aladdin (Appendix A.1) with author preferences equivalent to the paper's heuristic | Solution in < 5 min |
+| B (Story Genius) | Full Aladdin cast with protagonist, desire, misbelief, and third-rail (`domains/aladdin-story-genius*`) | Solution in < 5 min; first Story narrates misbelief + desire and at least one Realization (`cabal bench aladdin-story-genius`) |
+
+Level B has two acceptance paths: **`cabal bench aladdin`** checks paper parity (Figure 15 among the first five Stories on `builtin aladdin`); **`cabal bench aladdin-story-genius`** checks Cron-style protagonist arc on the parallel domain/problem pair. The small **`aladdin-inner`** pair remains a fast regression for inner-layer machinery.
 
 For comparison, the paper reports about 12 hours and 1.86 M generated nodes for Aladdin.
 
@@ -348,8 +351,9 @@ Preferences are declared in the problem file. Each one is either **hard**, meani
 - `max-backstory n` penalises backstory commitments beyond `n`. `:possible-backstory` lists facts and Intentions that the init Step may commit when an open condition needs them. Each commitment adds 3 (fact) or 7 (Intention) to `g`, which `(:backstory-cost :fact F :intention I)` can override.
 - `third-rail` penalises each Step with no path, through causal and motivation links, to the Protagonist's arc. The arc is the Steps in the Protagonist's Intervals, the Motivating steps of the Protagonist's Frames, and every Realization of a Protagonist Misbelief. The goal Step is not in the arc.
 - `serves-protagonist c` penalises each Frame of `c` whose final Step has no such path.
+- `realization-before-desire-progress` (default soft weight 50) penalises each Protagonist Step that advances the Desire before any Realization of a Protagonist Misbelief. Desire progress is a Protagonist Step that establishes the `:desire` literal, or the `frameFinal` of a successful Protagonist Frame whose goal unifies with `:desire`, counted in `linearize` order before the first Realization. A failed `:fail-first` attempt does not count. Without a Protagonist the preference is a no-op.
 
-Both relevance rules need a Protagonist. Unlike the other rules, their counts can **decrease**: a Step gains outgoing links when it is reused as an establisher, so a Step with no path now may get one later. The soft forms charge for the paths missing now, which makes them a heuristic estimate rather than a lower bound. The hard forms never prune partial plans. They are checked only at the goal test, where a complete plan that breaks one is a dead end.
+Both relevance rules need a Protagonist. `realization-before-desire-progress` also needs `:desire` and behaves like the relevance rules below when it applies. Unlike the other rules, their counts can **decrease**: a Step gains outgoing links when it is reused as an establisher, so a Step with no path now may get one later. The soft forms charge for the paths missing now, which makes them a heuristic estimate rather than a lower bound. The hard forms never prune partial plans. They are checked only at the goal test, where a complete plan that breaks one is a dead end.
 
 The validator lint "an internal change must lead to action" (`IPOCL.Lint.planWarnings`) warns about a Realization, or a Step that gives a Character an Intention, with no outgoing causal or motivation link to a later Step in which that Character is an Actor. It never rejects a plan.
 
@@ -479,7 +483,7 @@ Each milestone ends with green tests.
     is in an Interval.
   - Bribe: the Frames are Villain → `controls(vil, prez)` (motivated by `I`) and Hero → `has(vil, $)` (motivated by Coerce), and
     Coerce is in the Villain's Interval.
-  - Aladdin: the benchmark in `bench/` (Level B) checks the Frame set against Fig. 15.
+  - Aladdin: `cabal bench aladdin` (Level B paper) checks the Frame set against Fig. 15; `cabal bench aladdin-story-genius` checks protagonist arc narration on the full-scale Story Genius problem.
   - `--count 3` returns three stories with distinct story signatures.
 - **Golden tests**: narration and DOT output for Bribe, and a trace excerpt.
 

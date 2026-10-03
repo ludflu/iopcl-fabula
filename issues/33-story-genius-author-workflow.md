@@ -19,12 +19,12 @@ Deliver:
 
 **Blocked by:** 07 (Text domain), 14 (Scene cards), 16 (Protagonist / Misbelief), 08 (Narration).
 
-**Status:** open
+**Status:** closed
 
-- [ ] Guide is linked from **README** or **spec.md** (one line).
-- [ ] Wrapper exits non-zero on load/validation failure; prints **`Solved` / `Exhausted` / `LimitHit`** and stats.
-- [ ] One **golden or snapshot test** (optional): wrapper on **`misbelief-problem`** produces narration containing misbelief + desire lines (process test in **`spec`** or **`ParserSpec`** CLI section).
-- [ ] **Result** lists exact commands for the three example domains.
+- [x] Guide is linked from **README** or **spec.md** (one line).
+- [x] Wrapper exits non-zero on load/validation failure; prints **`Solved` / `Exhausted` / `LimitHit`** and stats.
+- [x] One **golden or snapshot test** (optional): wrapper on **`misbelief-problem`** produces narration containing misbelief + desire lines (process test in **`spec`** or **`ParserSpec`** CLI section).
+- [x] **Result** lists exact commands for the three example domains.
 
 **Notes:** A future ticket may add **blueprint YAML → problem file** generation; out of scope here (see issue **34** for search-side “good story” steering).
 
@@ -56,4 +56,15 @@ Deliver:
 
 ## Result
 
-*(Fill when closed.)*
+- **`docs/story-genius-workflow.md`** — Cron-order guide, IPocl snippets, scope limits, and example commands.
+- **`narrative-planning story-genius`** — resolves `domains/NAME*.ipocl` or explicit paths; default **`--timeout` 300**; **`--output-dir`**; large-domain **`--weight 1`** hint for `aladdin.ipocl`.
+- **`spec.md` §4.16** links the guide; **`ParserSpec`** CLI test: `story-genius misbelief` → **Solved**, narration with **believes** / **wants**.
+- **`scripts/story-genius-example.sh`** — thin CI-friendly wrapper.
+
+Example commands:
+
+```bash
+narrative-planning story-genius misbelief
+narrative-planning story-genius aladdin-inner
+narrative-planning story-genius ticking-clock
+```

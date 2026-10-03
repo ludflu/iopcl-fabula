@@ -64,6 +64,8 @@ executable narrative-planning
     build-depends:
         base,
         containers,
+        directory,
+        filepath,
         text,
         narrative-planning,
         optparse-applicative >=0.17 && <0.20

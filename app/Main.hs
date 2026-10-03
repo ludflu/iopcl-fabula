@@ -20,12 +20,15 @@ import IPOCL.Syntax
 import IPOCL.Trace
 import IPOCL.Validate
 import Options.Applicative
+import System.Directory (createDirectoryIfMissing)
 import System.Exit (exitFailure)
+import System.FilePath ((</>))
 import System.IO (IOMode (WriteMode), stderr, withFile)
 
 data Command
   = Builtin Text SolveOpts
   | SolveFiles FilePath FilePath SolveOpts
+  | StoryGenius FilePath (Maybe FilePath) SolveOpts (Maybe FilePath)
 
 data SolveOpts = SolveOpts
   { optMaxNodes :: Maybe Int
@@ -78,9 +81,32 @@ commandP =
   hsubparser
     ( command "solve" (info (SolveFiles <$> strArgument (metavar "DOMAIN") <*> strArgument (metavar "PROBLEM") <*> solveOpts) (progDesc "Solve a problem read from domain and problem files"))
         <> command "builtin" (info (Builtin <$> strArgument (metavar "NAME" <> help builtinHelp) <*> solveOpts) (progDesc "Solve a built-in problem"))
+        <> command
+          "story-genius"
+          ( info
+              ( StoryGenius
+                  <$> strArgument (metavar "NAME|DOMAIN" <> help "Short name (e.g. misbelief) or path to a domain file")
+                  <*> optional (strArgument (metavar "PROBLEM" <> help "Problem file when the first argument is a domain path"))
+                  <*> solveOpts
+                  <*> optional (strOption (long "output-dir" <> metavar "DIR" <> help "Also write narration (and scene cards if --cards) under DIR"))
+              )
+              ( progDesc
+                  "Story Genius workflow: validate, then solve (see docs/story-genius-workflow.md). Short names use domains/NAME.ipocl and domains/NAME-problem.ipocl (e.g. misbelief, aladdin-inner, ticking-clock)."
+              )
+          )
     )
   where
     builtinHelp = "One of: " <> T.unpack (T.intercalate ", " (map fst builtins))
+
+storyGeniusPaths :: FilePath -> Maybe FilePath -> (FilePath, FilePath)
+storyGeniusPaths name Nothing =
+  ("domains/" <> name <> ".ipocl", "domains/" <> name <> "-problem.ipocl")
+storyGeniusPaths domain (Just problemFile) = (domain, problemFile)
+
+isLargeDomain :: FilePath -> Bool
+isLargeDomain path =
+  let base = reverse . takeWhile (/= '/') $ reverse path
+   in base == "aladdin.ipocl"
 
 main :: IO ()
 main = do
@@ -88,12 +114,18 @@ main = do
   case cmd of
     Builtin name opts -> case lookup name builtins of
       Nothing -> die' ("unknown built-in problem " <> name)
-      Just p -> run p opts
+      Just p -> run p opts Nothing
     SolveFiles domainFile problemFile opts ->
-      loadProblem domainFile problemFile >>= either die' (`run` opts)
+      loadProblem domainFile problemFile >>= either die' (\p -> run p opts Nothing)
+    StoryGenius name mProblem opts mOutDir -> do
+      let (domainFile, problemFile) = storyGeniusPaths name mProblem
+          opts' = opts {optTimeout = optTimeout opts <|> Just 300}
+      when (isLargeDomain domainFile) $
+        TIO.hPutStrLn stderr "hint: for large domains such as aladdin.ipocl, try --weight 1 if search is slow"
+      loadProblem domainFile problemFile >>= either die' (\p -> run p opts' mOutDir)
 
-run :: Problem -> SolveOpts -> IO ()
-run p opts = do
+run :: Problem -> SolveOpts -> Maybe FilePath -> IO ()
+run p opts mOutDir = do
   let issues = checkProblem p
   unless (null issues) $ do
     mapM_ (TIO.hPutStrLn stderr) issues
@@ -119,10 +151,18 @@ run p opts = do
     TIO.putStr (renderPlan plan)
     when (optNarrate opts) $ do
       TIO.putStrLn "Narration:"
-      TIO.putStr (T.unlines (map ("  " <>) (T.lines (narrate p plan))))
+      let narration = narrate p plan
+      TIO.putStr (T.unlines (map ("  " <>) (T.lines narration)))
+      forM_ mOutDir $ \dir -> do
+        createDirectoryIfMissing True dir
+        TIO.writeFile (dir </> ("story-" ++ show i ++ "-narration.txt")) narration
     when (optCards opts) $ do
       TIO.putStrLn "Scene cards:"
-      TIO.putStr (T.unlines (map ("  " <>) (T.lines (renderCards p plan))))
+      let cards = renderCards p plan
+      TIO.putStr (T.unlines (map ("  " <>) (T.lines cards)))
+      forM_ mOutDir $ \dir -> do
+        createDirectoryIfMissing True dir
+        TIO.writeFile (dir </> ("story-" ++ show i ++ "-cards.txt")) cards
     forM_ (optDot opts) $ \file -> TIO.writeFile (dotFileFor file i) (planToDot p plan)
     let problems = validatePlan p plan
     unless (null problems) $ do

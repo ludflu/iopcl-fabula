@@ -136,6 +136,15 @@ spec = do
       out `shouldBe` ""
       err `shouldContain` "domains/tower.ipocl:3:"
 
+  describe "story-genius CLI" $ do
+    it "solves misbelief with narration" $ do
+      (code, out, err) <- readProcessWithExitCode "narrative-planning" ["story-genius", "misbelief", "--timeout", "120"] ""
+      code `shouldBe` ExitSuccess
+      out `shouldContain` "Solved"
+      out `shouldContain` "believes"
+      out `shouldContain` "wants"
+      err `shouldNotContain` "warning:"
+
 -- Generators ----------------------------------------------------------------
 
 newtype GenProblem = GenProblem Problem
@@ -212,6 +221,7 @@ genPreference = Preference <$> rule <*> strength
         , ServesProtagonist <$> who
         , MaxBackstory <$> chooseInt (0, 10)
         , pure MisbeliefBlocks
+        , pure RealizationBeforeDesireProgress
         ]
     strength = oneof [pure Hard, Soft <$> chooseInt (0, 10000)]
 
