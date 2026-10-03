@@ -19,6 +19,7 @@ import GHC.Clock (getMonotonicTime)
 import IPOCL.Beam
 import IPOCL.Heuristic
 import IPOCL.Mcts
+import IPOCL.Parallel (defaultParallelMin)
 import IPOCL.Plan
 import IPOCL.Preferences (softPenalty)
 import IPOCL.Refine
@@ -43,6 +44,8 @@ data SolveConfig = SolveConfig
   , cfgSeed :: !Int
   -- ^ Breaks ties between equally promising plans.
   , cfgDedupe :: !Bool
+  , cfgParallelMin :: !Int
+  -- ^ Minimum candidate count before child plans are built in parallel (0 = off).
   -- ^ Drop plans already reached by another refinement order. Off by default:
   -- refining one chosen flaw per plan makes the search tree nearly
   -- systematic, so duplicates are rare and hashing every child costs ~2x.
@@ -62,6 +65,7 @@ defaultSolveConfig =
     , cfgMaxGenerated = Nothing
     , cfgSeed = 0
     , cfgDedupe = False
+    , cfgParallelMin = defaultParallelMin
     }
 
 -- | How a search stopped (not the Outcome of the Story).
@@ -90,7 +94,7 @@ events cfg p = distinct Set.empty (run env searchCfg (initialPlan p))
       Beam width -> beamSearch width
       Mcts params -> mctsSearch params
     r = problemReachability p
-    env = mkEnvWith p (reachableActions r)
+    env = mkEnvWith p (reachableActions r) (cfgParallelMin cfg)
     searchCfg =
       defaultSearchConfig
         { scWeight = cfgWeight cfg

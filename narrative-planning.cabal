@@ -30,6 +30,7 @@ library
         IPOCL.Order
         IPOCL.Ground
         IPOCL.Plan
+        IPOCL.Parallel
         IPOCL.Refine
         IPOCL.Report
         IPOCL.Heuristic
@@ -55,7 +56,8 @@ library
         base ^>=4.20.2.0,
         containers >=0.6 && <0.8,
         text >=2.0 && <2.2,
-        megaparsec >=9.5 && <9.8
+        megaparsec >=9.5 && <9.8,
+        parallel >=3.2 && <3.3
 
 executable narrative-planning
     import:           warnings

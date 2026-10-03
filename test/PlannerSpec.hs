@@ -13,6 +13,7 @@ import IPOCL.Domains.Tower
 import IPOCL.Order
 import IPOCL.Refine
 import IPOCL.Search
+import IPOCL.Signature (storySignature)
 import IPOCL.Syntax (Problem, problemName)
 import Test.Hspec hiding (before)
 
@@ -59,6 +60,14 @@ spec = do
         `shouldBe` []
     it "keeps recorded threats equal to threats computed from scratch" $
       mapM_ threatsAgree [towerProblem, motivatedTowerProblem, aladdinProblem]
+    it "parallel child generation matches sequential search counts" $ do
+      let summary cfg p =
+            let r = solvePure cfg {cfgMaxExpanded = Just 50000} p
+             in (resultEnd r, resultExpanded r, resultGenerated r, map storySignature (resultStories r))
+          sequential = defaultSolveConfig {cfgParallelMin = 999}
+          parallel = defaultSolveConfig {cfgParallelMin = 4}
+      summary sequential bribeProblem `shouldBe` summary parallel bribeProblem
+      summary sequential motivatedTowerProblem `shouldBe` summary parallel motivatedTowerProblem
     it "returns only valid plans across several solutions" $ do
       let r = solvePure defaultSolveConfig {cfgCount = 5, cfgMaxExpanded = Just 20000} bribeProblem
       length (resultStories r) `shouldSatisfy` (>= 2)

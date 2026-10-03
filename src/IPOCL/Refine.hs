@@ -28,6 +28,7 @@ import Data.Text qualified as T
 import IPOCL.Bindings
 import IPOCL.Ground
 import IPOCL.Order
+import IPOCL.Parallel (defaultParallelMin, parallelMap)
 import IPOCL.Plan
 import IPOCL.Preferences
 import IPOCL.Pretty
@@ -43,13 +44,15 @@ data Env = Env
   , envInit :: !(Set Atom)
   , envPrune :: Plan -> Bool
   -- ^ Hard pruning (e.g. hard Author preferences); 'True' drops the plan.
+  , envParallelMin :: !Int
+  -- ^ Minimum candidate count before child plans are built in parallel.
   }
 
 mkEnv :: Problem -> Env
-mkEnv p = mkEnvWith p (groundActions p)
+mkEnv p = mkEnvWith p (groundActions p) defaultParallelMin
 
-mkEnvWith :: Problem -> [GroundAction] -> Env
-mkEnvWith p gas =
+mkEnvWith :: Problem -> [GroundAction] -> Int -> Env
+mkEnvWith p gas parallelMin =
   Env
     { envProblem = p
     , envActions = gas
@@ -57,6 +60,7 @@ mkEnvWith p gas =
     , envAttemptIndex = effectIndex (groundActions p)
     , envInit = problemInit p
     , envPrune = hardViolated p (problemPreferences p)
+    , envParallelMin = parallelMin
     }
 
 effectIndex :: [GroundAction] -> Map (Bool, Text) [(GroundAction, Literal)]
@@ -243,13 +247,14 @@ resolveCausalThreat env plan t l =
 
 openCondition :: Env -> Plan -> StepId -> Literal -> [Child]
 openCondition env plan0 sNeed p =
-  [ Child plan' (establishReason plan' est p <> note)
-  | est <- establishers env plan [sNeed] p
-  , Just linked <- [link est]
-  , (plan', note) <- afterEstablish env est linked
-  , fulfils plan' (estStep est)
-  ]
+  concat (parallelMap (envParallelMin env) childrenFor (establishers env plan [sNeed] p))
   where
+    childrenFor est =
+      [ Child plan' (establishReason plan' est p <> note)
+      | Just linked <- [link est]
+      , (plan', note) <- afterEstablish env est linked
+      , fulfils plan' (estStep est)
+      ]
     plan = plan0 {planOpenConds = filter (/= (sNeed, p)) (planOpenConds plan0)}
     -- A Required Frame's pseudo-step is supported only by the final Step of a
     -- Frame of its Character for this goal (ADR-0004).
@@ -272,11 +277,16 @@ openMotivation env plan fid = case IM.lookup fid (planFrames plan) of
         motivate (Establisher pl m _) = do
           o <- foldM (flip (addOrder m)) (planOrder pl) members
           Just pl {planOrder = o, planFrames = IM.insert fid f {frameMotivator = Just m} (planFrames pl)}
-     in [ Child plan' (establishReason plan' est (frameIntention f) <> note)
-        | est <- establishers env plan members (frameIntention f)
-        , Just motivated <- [motivate est]
-        , (plan', note) <- afterEstablish env est motivated
-        ]
+     in concat
+          ( parallelMap (envParallelMin env)
+              ( \est ->
+                  [ Child plan' (establishReason plan' est (frameIntention f) <> note)
+                  | Just motivated <- [motivate est]
+                  , (plan', note) <- afterEstablish env est motivated
+                  ]
+              )
+              (establishers env plan members (frameIntention f))
+          )
 
 -- Attempt planning ------------------------------------------------------------
 
@@ -333,13 +343,19 @@ orderFailFirst plan0 = foldM one plan0 (IM.toList (planFailFirst plan0))
 -- then bookkeeping and pruning.
 afterEstablish :: Env -> Establisher -> Plan -> [(Plan, Text)]
 afterEstablish env est pl0 =
-  [ (pl'', note)
-  | (pl', note) <- if estNew est then discoverFrames (estStep est) pl else [(pl, "")]
-  , Just pl'' <- [finalize env pl']
-  ]
+  concat
+    ( parallelMap (envParallelMin env)
+        ( \(pl', note) ->
+            [ (pl'', note)
+            | Just pl'' <- [finalize env pl']
+            ]
+        )
+        branches
+    )
   where
-    -- Not done in 'addStep': flaw ranking builds establishers it never keeps.
     pl = if estNew est then withStepThreats (estStep est) pl0 else pl0
+    branches = if estNew est then discoverFrames (estStep est) pl else [(pl, "")]
+    -- Not done in 'addStep': flaw ranking builds establishers it never keeps.
 
 -- | Bookkeeping after every refinement: prune, then propose new intent flaws.
 -- Hard preferences never read the intent fields, so pruning first is safe.
