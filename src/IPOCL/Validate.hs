@@ -19,14 +19,16 @@ import IPOCL.Pretty
 import IPOCL.Syntax
 
 -- | Every violation found; an empty list means the plan is valid.
-validatePlan :: Mode -> Problem -> Plan -> [Text]
-validatePlan mode prob plan =
+validatePlan :: Problem -> Plan -> [Text]
+validatePlan prob plan =
   concat
     [ backstoryViolations
     , attemptViolations
     , supportViolations
     , threatViolations
-    , if mode == IPOCL then frameViolations ++ orphanViolations ++ requiredViolations else []
+    , frameViolations
+    , orphanViolations
+    , requiredViolations
     , simulate prob plan
     ]
   where

@@ -85,7 +85,7 @@ spec = describe "backstory on demand" $ do
   describe "planning" $ do
     it "solves a problem that needs a missing fact, and reports it" $ do
       resultEnd (limited houseProblem) `shouldBe` Exhausted
-      s <- firstStory IPOCL (withBackstory houseProblem)
+      s <- firstStory (withBackstory houseProblem)
       planBackstory s `shouldBe` Set.singleton owns
       storyLabels s `shouldBe` ["evict(nora, ruby, house)"]
       T.unpack (renderPlan s) `shouldSatisfy` isInfixOf "Backstory:\n  owns(nora, house)\n"
@@ -93,17 +93,17 @@ spec = describe "backstory on demand" $ do
       let needsBoth = (withBackstory houseProblem) {problemOutcome = [lit "homeless" ["ruby"], nlit "owns" ["nora", "house"]]}
           unsellable = needsBoth {problemDomain = (problemDomain needsBoth) {domainSchemas = take 1 (domainSchemas (problemDomain needsBoth))}}
       resultEnd (limited unsellable) `shouldBe` Exhausted
-      s <- firstStory IPOCL needsBoth
+      s <- firstStory needsBoth
       storyLabels s `shouldBe` ["evict(nora, ruby, house)", "sell(nora, house)"]
-      s `shouldBeValidFor` (IPOCL, needsBoth)
+      s `shouldBeValidFor` needsBoth
     it "passes validation with the committed literals in the initial state" $ do
       let p = withBackstory houseProblem
           ss = stories p
       length ss `shouldSatisfy` (> 0)
-      mapM_ (`shouldBeValidFor` (IPOCL, p)) ss
-      mapM_ (\s -> validatePlan IPOCL houseProblem s `shouldContain` ["backstory owns(nora, house) is not possible backstory"]) ss
+      mapM_ (`shouldBeValidFor` p) ss
+      mapM_ (\s -> validatePlan houseProblem s `shouldContain` ["backstory owns(nora, house) is not possible backstory"]) ss
     it "makes backstory part of the story signature" $ do
-      s <- firstStory IPOCL (withBackstory houseProblem)
+      s <- firstStory (withBackstory houseProblem)
       let other = s {planBackstory = Set.insert (atom "owns" ["ruby", "house"]) (planBackstory s)}
       storySignature other `shouldNotBe` storySignature s
       planSignature other `shouldNotBe` planSignature s
@@ -117,7 +117,7 @@ spec = describe "backstory on demand" $ do
     it "caps commitments with max-backstory" $ do
       let capped s = (withBackstory houseProblem) {problemPreferences = [Preference (MaxBackstory 0) s]}
       resultEnd (limited (capped Hard)) `shouldBe` Exhausted
-      s <- firstStory IPOCL (capped (Soft 10))
+      s <- firstStory (capped (Soft 10))
       planBackstory s `shouldBe` Set.singleton owns
       softPenaltyOf (capped (Soft 10)) s `shouldBe` 10
       softPenaltyOf (withBackstory houseProblem) {problemPreferences = [Preference (MaxBackstory 1) (Soft 10)]} s `shouldBe` 0

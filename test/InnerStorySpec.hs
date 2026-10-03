@@ -37,8 +37,8 @@ limited = solvePure defaultSolveConfig {cfgMaxExpanded = Just 5000}
 -- before the Step it unblocks.
 realizedBy :: Text -> Problem -> IO [Text]
 realizedBy realization p = do
-  s <- firstStory IPOCL p
-  s `shouldBeValidFor` (IPOCL, p)
+  s <- firstStory p
+  s `shouldBeValidFor` p
   let labels = storyLabels s
       at l = elemIndex l labels
   at (realization <> "(ruby, henry)") `shouldSatisfy` (< at "confess-love(ruby, henry)")
@@ -119,7 +119,7 @@ spec = describe "Protagonist, Desire and Misbeliefs" $ do
           >>= either (\e -> expectationFailure (T.unpack e) >> error "unreachable") pure
       let ss = resultStories (solvePure defaultSolveConfig {cfgMaxExpanded = Just 100000, cfgCount = 3} p)
       length ss `shouldBe` 3
-      mapM_ (`shouldBeValidFor` (IPOCL, p)) ss
+      mapM_ (`shouldBeValidFor` p) ss
       mapM_ (\s -> planBackstory s `shouldBe` Set.singleton (atom "has" ["dragon", "lamp"])) ss
       mapM_ (\s -> length (filter ("aladdin realizes" `T.isPrefixOf`) (T.lines (narrate p s))) `shouldBe` 1) ss
       any (\s -> length (filter (T.isPrefixOf "slay(aladdin") (storyLabels s)) == 2) ss `shouldBe` True
@@ -127,7 +127,7 @@ spec = describe "Protagonist, Desire and Misbeliefs" $ do
   describe "narration" $
     it "opens with the Misbelief and the Desire, and marks the Realization" $ do
       p <- without ["rescue"] <$> loadMisbelief
-      s <- firstStory IPOCL p
+      s <- firstStory p
       T.lines (narrate p s)
         `shouldBe` [ "ruby believes love is dangerous."
                    , "ruby wants ruby is with henry."

@@ -3,7 +3,6 @@ module TickingSpec (spec) where
 import Data.List (elemIndex)
 import Data.Text qualified as T
 import Helpers
-import IPOCL
 import IPOCL.Parser
 import IPOCL.Syntax
 import Test.Hspec
@@ -16,8 +15,8 @@ spec = describe "ticking-clock prototype" $
     p <-
       loadProblem "domains/ticking-clock.ipocl" "domains/ticking-clock-problem.ipocl"
         >>= either (\e -> expectationFailure (T.unpack e) >> error "unreachable") pure
-    s <- firstStory IPOCL p
-    s `shouldBeValidFor` (IPOCL, p)
+    s <- firstStory p
+    s `shouldBeValidFor` p
     let labels = storyLabels s
     labels `shouldBe` ["storm()", "river-rises(ruby, millbrook)", "sandbag(ruby, millbrook)"]
     elemIndex "flood(millbrook)" labels `shouldBe` Nothing

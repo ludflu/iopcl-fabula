@@ -33,7 +33,8 @@ For comparison, the paper reports about 12 hours and 1.86 M generated nodes for 
 
 1. A library implementing the full algorithm of Figure 5: causal planning, motivation planning, intent planning,
    causal threats and intentional threats, with the completeness test of Definition 6.
-2. A POCL baseline mode (Figure 1) that uses the same code with intentionality turned off.
+2. ~~A POCL baseline mode (Figure 1) that uses the same code with intentionality turned off.~~ Removed; every plan is
+   planned and validated for intentionality (ADR-0006).
 3. Domain grounding, a reachability-based heuristic, weighted A* search with duplicate detection, and seeded
    randomisation.
 4. **Author preferences**: declarative steering in the problem file, compiled into heuristic penalties or hard pruning (§4.12).
@@ -319,8 +320,7 @@ to be settled first.
 - for each intent flaw and threat: 1;
 - the soft penalties from author preferences (§4.12).
 
-`--heuristic paper` selects the Appendix A.1 domain-independent heuristic instead, for comparison. POCL mode drops the
-motivation, orphan, and intent terms.
+`--heuristic paper` selects the Appendix A.1 domain-independent heuristic instead, for comparison.
 
 ### 4.12 Author preferences (`IPOCL.Preference`)
 Preferences are declared in the problem file. Each one is either **hard**, meaning a child that violates it is pruned, or
@@ -408,7 +408,7 @@ The Haskell EDSL comes first, and the text format is added in M6. A round-trip t
 ### 4.16 CLI
 
 ```
-narrative-planning solve DOMAIN PROBLEM [--mode ipocl|pocl] [--count N] [--seed N]
+narrative-planning solve DOMAIN PROBLEM [--count N] [--seed N]
     [--weight W | --greedy] [--heuristic default|paper] [--max-nodes N] [--timeout S]
     [--trace FILE] [--dot FILE] [--no-narrate]
 narrative-planning validate DOMAIN PROBLEM PLAN
@@ -444,7 +444,7 @@ Each milestone ends with green tests.
 3. **M2 Grounding and the POCL baseline**:
    - build `Ground`, `Plan`, `Init`, causal threats, `Refine` (open conditions and threats only), `Search`, `Validate.Plan`,
      and `Linearize`;
-   - acceptance: POCL solves Tower, and solves Aladdin in POCL mode.
+   - acceptance: POCL solves Tower, and solves Aladdin in POCL mode. (POCL mode was later removed, ADR-0006.)
 4. **M3 Frames and motivation**: frame discovery, open motivation flaws, motivation planning, Orphans, the IPOCL goal test.
 5. **M4 Intent planning and intentional threats**:
    - build intent candidates (conditions 1 and 2), Adopt and Reject, `frameOrder`, and the frame-order invariant;
@@ -467,15 +467,13 @@ Each milestone ends with green tests.
 - **Property tests** (QuickCheck):
   - no child has a cyclic `O` or an inconsistent `B`;
   - every solution passes `Validate.Plan`;
-  - on small random domains, a POCL-mode solution simulates correctly;
-  - an IPOCL solution exists only if a POCL solution exists;
   - duplicate detection never drops a plan with a new signature;
   - the same seed gives the same output.
 - **Equivalence tests** check that recomputed intent candidates equal Figure 5's eager formulation (frame discovery plus
   spreading activation) along sampled search paths.
 - **Scenario tests**:
-  - Tower: with no motivating actions, IPOCL returns `Exhausted` while POCL finds "princess kills king". With a variant that has
-    motivating actions, every Step is in an Interval.
+  - Tower: with no motivating actions, IPOCL returns `Exhausted`. With a variant that has motivating actions, every Step
+    is in an Interval.
   - Bribe: the Frames are Villain → `controls(vil, prez)` (motivated by `I`) and Hero → `has(vil, $)` (motivated by Coerce), and
     Coerce is in the Villain's Interval.
   - Aladdin: the benchmark in `bench/` (Level B) checks the Frame set against Fig. 15.

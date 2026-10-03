@@ -159,19 +159,19 @@ uncachedIntentionCost r a = uncachedLiteralCost r (pos (Atom intendsPredicate [T
 data HeuristicChoice = Additive | Paper | Blind
   deriving (Eq, Show)
 
-heuristic :: HeuristicChoice -> Reachability -> Env -> Plan -> Maybe Int
+heuristic :: HeuristicChoice -> Reachability -> Plan -> Maybe Int
 heuristic = \case
   Additive -> additiveHeuristic
   Paper -> const paperHeuristic
-  Blind -> \_ _ _ -> Just 0
+  Blind -> \_ _ -> Just 0
 
 -- | Sum of reachability costs of what the plan still needs; 'Nothing' when
 -- some open condition, open motivation or Orphan can never be repaired.
-additiveHeuristic :: Reachability -> Env -> Plan -> Maybe Int
-additiveHeuristic r env plan = do
+additiveHeuristic :: Reachability -> Plan -> Maybe Int
+additiveHeuristic r plan = do
   opens <- traverse (\(_, l) -> openCost l) (planOpenConds plan)
   motivations <- traverse (\f -> (1 +) <$> literalCost r b (frameIntention f)) unmotivated
-  orphanCosts <- traverse orphanCost (intentionalOrphans env plan)
+  orphanCosts <- traverse orphanCost (orphans plan)
   required <- traverse (\(c, l) -> (1 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym c, TLit l]))) unmetRequired
   attempts <- traverse (\(c, l) -> (2 +) <$> literalCost r b (pos (Atom intendsPredicate [TSym c, TLit l]))) openAttempts
   Just (sum opens + sum motivations + sum orphanCosts + sum required + sum attempts + length (planPendingIntent plan) + length threats)
@@ -186,37 +186,30 @@ additiveHeuristic r env plan = do
     -- An attempted Step plus its failed Frame's motivation.
     openAttempts =
       [ (c, l)
-      | envMode env == IPOCL
-      , s <- planOpenAttempts plan
+      | s <- planOpenAttempts plan
       , Just c <- [IM.lookup s (planRequired plan)]
       , Just st <- [IM.lookup s (planSteps plan)]
       , l <- stepPre st
       ]
     unmetRequired =
       [ (c, l)
-      | envMode env == IPOCL
-      , (s, l) <- planOpenConds plan
+      | (s, l) <- planOpenConds plan
       , Just c <- [IM.lookup s (planRequired plan)]
       ]
     unmotivated = [f | f <- IM.elems (planFrames plan), isNothing (frameMotivator f)]
-    threats = filter isThreat (flaws env plan)
+    threats = filter isThreat (flaws plan)
     -- An Orphan with a pending intent flaw for one of its Actor's Frames is one
     -- decision from joining; any other still needs a Frame it has not got.
     orphanCost (s, a)
       | any (\(s', c) -> s' == s && fmap frameCharacter (IM.lookup c (planFrames plan)) == Just a) (planPendingIntent plan) = Just 1
       | otherwise = (2 +) <$> intentionCost r a
-
--- | Orphans only exist when planning for intentionality.
-intentionalOrphans :: Env -> Plan -> [(StepId, Symbol)]
-intentionalOrphans env plan = if envMode env == IPOCL then orphans plan else []
-
 -- | The domain-independent heuristic of Appendix A.1.
-paperHeuristic :: Env -> Plan -> Maybe Int
-paperHeuristic env plan =
+paperHeuristic :: Plan -> Maybe Int
+paperHeuristic plan =
   Just $
     length (actionSteps plan)
-      + length (flaws env plan)
+      + length (flaws plan)
       + sum [10 * n | c <- characters, let n = length (framesOf plan c), n > 1]
-      + 1000 * length [() | (_, a) <- intentionalOrphans env plan, null (framesOf plan a)]
+      + 1000 * length [() | (_, a) <- orphans plan, null (framesOf plan a)]
   where
     characters = Set.toList (Set.fromList (map frameCharacter (IM.elems (planFrames plan))))

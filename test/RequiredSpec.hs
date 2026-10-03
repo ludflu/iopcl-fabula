@@ -78,20 +78,20 @@ spec = describe "Required Frames" $ do
 
   describe "planning" $ do
     it "leaves the Bribe Story unchanged when the Outcome already needs the Frame" $ do
-      plain <- firstStory IPOCL bribeProblem
+      plain <- firstStory bribeProblem
       let p = requiring [("hero", lit "has" ["villain", "money"])] bribeProblem
-      required <- firstStory IPOCL p
+      required <- firstStory p
       storyLabels required `shouldBe` storyLabels plain
       frameSummary required `shouldBe` frameSummary plain
       storySignature required `shouldBe` storySignature plain
       narrate p required `shouldBe` narrate bribeProblem plain
-      required `shouldBeValidFor` (IPOCL, p)
+      required `shouldBeValidFor` p
     it "adds Steps for a Frame the Outcome does not need" $ do
-      plain <- firstStory IPOCL luckProblem
+      plain <- firstStory luckProblem
       storyLabels plain `shouldBe` ["sing(bard)"]
       let p = requiring [("jester", lit "rich" ["king"])] luckProblem
-      required <- firstStory IPOCL p
-      required `shouldBeValidFor` (IPOCL, p)
+      required <- firstStory p
+      required `shouldBeValidFor` p
       [g | (c, g, _, _) <- frameSummary required, c == "jester"] `shouldBe` ["rich(king)"]
       storyLabels required `shouldMatchList` ["sing(bard)", "give-gold(jester)"]
     it "is never satisfied by another Character's Frame or an unintended Step" $ do
@@ -101,17 +101,17 @@ spec = describe "Required Frames" $ do
       let p = requiring [("jester", lit "rich" ["king"])] luckProblem
           ss = stories p
       length ss `shouldSatisfy` (> 0)
-      mapM_ (`shouldBeValidFor` (IPOCL, p)) ss
+      mapM_ (`shouldBeValidFor` p) ss
       let unframed s = s {planFrames = IM.filter ((/= "jester") . frameCharacter) (planFrames s)}
-      mapM_ (\s -> validatePlan IPOCL p (unframed s) `shouldSatisfy` elem "required frame jester wants rich(king) is not in the story") ss
+      mapM_ (\s -> validatePlan p (unframed s) `shouldSatisfy` elem "required frame jester wants rich(king) is not in the story") ss
     it "allows a later Step to undo the required goal" $ do
       let p = (requiring [("hero", lit "awake" ["hero"])] sleepyProblem) {problemOutcome = [lit "asleep" ["hero"]]}
-      s <- firstStory IPOCL p
-      s `shouldBeValidFor` (IPOCL, p)
+      s <- firstStory p
+      s `shouldBeValidFor` p
       storyLabels s `shouldBe` ["wake-up(hero)", "read(hero)", "fall-asleep(hero)"]
     it "keeps pseudo-steps out of the narration, the Orphans and the step list" $ do
       let p = requiring [("jester", lit "rich" ["king"])] luckProblem
-      s <- firstStory IPOCL p
+      s <- firstStory p
       orphans s `shouldBe` []
       map stepAction (actionSteps s) `shouldNotContain` [Nothing]
       T.unpack (narrate p s) `shouldNotContain` "required"
