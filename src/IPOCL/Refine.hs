@@ -400,9 +400,38 @@ resolveIntentFlaw env plan0 s c =
       finalize env plan {planOrder = o, planFrames = IM.insert c f {frameInterval = IS.insert s (frameInterval f)} (planFrames plan)}
 
 -- | Every child passes through here, so it is where recorded threats are
--- re-checked against the child's new orderings and bindings.
+-- re-checked against the child's new orderings and bindings. A child with a
+-- threat that no ordering or separation can repair is dropped now rather than
+-- expanded into a dead end.
 keep :: Env -> Plan -> Maybe Plan
-keep env pl = if envPrune env pl then Nothing else Just (recheckThreats pl)
+keep env pl
+  | envPrune env pl = Nothing
+  | all (repairable checked) (Set.toList (planThreats checked)) = Just checked
+  | otherwise = Nothing
+  where
+    checked = recheckThreats pl
+
+-- | Some promotion, demotion or separation of the threat is consistent.
+repairable :: Plan -> (CausalLink, Down StepId) -> Bool
+repairable plan (l, Down t) =
+  isJust (addOrder (linkTo l) t o)
+    || isJust (addOrder t (linkFrom l) o)
+    || not (null separations)
+  where
+    o = planOrder plan
+    b = planBindings plan
+    cond = resolveLiteral b (negateLit (linkCond l))
+    separations =
+      [ ()
+      | Just step <- [IM.lookup t (planSteps plan)]
+      , e <- map (resolveLiteral b) (stepEff step)
+      , litPositive e == litPositive cond
+      , isJust (unifyLiterals b e cond)
+      , e /= cond
+      , (x, y) <- zip (atomArgs (litAtom e)) (atomArgs (litAtom cond))
+      , x /= y
+      , Just _ <- [addNeq b x y]
+      ]
 
 -- Frame discovery -------------------------------------------------------------
 

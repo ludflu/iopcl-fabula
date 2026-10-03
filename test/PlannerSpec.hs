@@ -50,6 +50,13 @@ spec = do
       plan `shouldBeValidFor` tinyProblem
     it "never visits a plan with cyclic orderings or inconsistent bindings" $
       mapM_ planIsConsistent (take 2000 [evPlan e | e <- search (mkEnv motivatedTowerProblem) defaultSearchConfig (initialPlan motivatedTowerProblem)])
+    it "drops a child with an unrepairable threat instead of expanding it" $ do
+      let env = mkEnv aladdinProblem
+      [ f
+        | Visited {evPlan = plan} <- take 3000 (search env defaultSearchConfig (initialPlan aladdinProblem))
+        , DeadEnd (Just f@CausalThreat {}) <- [expand env plan]
+        ]
+        `shouldBe` []
     it "keeps recorded threats equal to threats computed from scratch" $
       mapM_ threatsAgree [towerProblem, motivatedTowerProblem, aladdinProblem]
     it "returns only valid plans across several solutions" $ do
