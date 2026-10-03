@@ -11,6 +11,9 @@ module IPOCL.Refine
   , isThreat
   , expand
   , refine
+  , intentCandidates
+  , Establisher (..)
+  , addStep
   ) where
 
 import Control.Monad (foldM)
@@ -27,6 +30,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import IPOCL.Bindings
 import IPOCL.Ground
+import IPOCL.IntentFeasible (intentAdoptForeverImpossible)
 import IPOCL.Order
 import IPOCL.Plan
 import IPOCL.Preferences
@@ -346,11 +350,13 @@ afterEstablish env est pl0 =
 finalize :: Env -> Plan -> Maybe Plan
 finalize env pl0 = do
   pl <- orderFailFirst pl0 >>= keep env
-  let fresh = nub [c | c <- intentCandidates pl, not (Set.member c (planProposedIntent pl))]
+  let candidates = nub [c | c <- intentCandidates pl, not (Set.member c (planProposedIntent pl))]
+      fresh = [c | c <- candidates, not (uncurry (intentAdoptForeverImpossible pl) c)]
+      skipped = [c | c <- candidates, uncurry (intentAdoptForeverImpossible pl) c]
   Just
     pl
       { planPendingIntent = fresh ++ planPendingIntent pl
-      , planProposedIntent = foldr Set.insert (planProposedIntent pl) fresh
+      , planProposedIntent = foldr Set.insert (planProposedIntent pl) (fresh ++ skipped)
       }
 
 -- | Step-Frame pairs that could explain the Step (ADR-0002): the Step shares

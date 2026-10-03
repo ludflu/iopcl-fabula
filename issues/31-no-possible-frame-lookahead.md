@@ -23,12 +23,12 @@
 
 **Blocked by:** 03 (IPOCL frames, motivation, Orphans), ADR-0002, 13 (Level B). **Do after:** ticket **30** (weight baseline). **Before / with:** ticket **29** (shared predicate).
 
-**Status:** open
+**Status:** closed
 
-- [ ] ADR-0009 written and linked from this ticket.
-- [ ] Filter in `finalize`; ADR-0002 “each pair once” argument spelled out in ADR.
-- [ ] Property tests on sampled paths; `PlannerSpec` / equivalence tests pass.
-- [ ] **Result** with before/after bench; if expansion drop **< 5%**, document and still ship if correctness story is clean (predicate may be rare).
+- [x] ADR-0009 written and linked from this ticket.
+- [x] Filter in `finalize`; ADR-0002 “each pair once” argument spelled out in ADR.
+- [x] Property tests on sampled paths; `PlannerSpec` / equivalence tests pass.
+- [x] **Result** with before/after bench; if expansion drop **< 5%**, document and still ship if correctness story is clean (predicate may be rare).
 
 **Notes:** If the predicate is expensive, cache per `(s,c)` only for `fresh` pairs. Ticket **29** may add heuristic surcharges for pairs that are not forever impossible but are unlikely — different hook.
 
@@ -60,4 +60,17 @@
 
 ## Result
 
-*(Fill when closed.)*
+**ADR:** [docs/adr/0009-no-possible-frame-lookahead.md](../docs/adr/0009-no-possible-frame-lookahead.md)
+
+**Implementation:** `IPOCL.IntentFeasible.intentAdoptForeverImpossible`; `finalize` enqueues only non-impossible fresh pairs but still inserts all fresh pairs into `planProposedIntent` (implicit stay-out).
+
+**Tests:** `IntentFeasibleSpec` (sampled parent→child edges on Tower, motivated Tower, Bribe, Aladdin); `PlannerSpec` pending invariant; full `cabal test spec` — **186 examples, 0 failures**.
+
+**Bench** (`cabal bench aladdin`, `w = 2`, first Story):
+
+| | expanded | generated | time |
+|---|--:|--:|--:|
+| Baseline (tickets 21–25) | 189,899 | 452,146 | ~8.4–9.0 s |
+| After ticket 31 | 186,896 | 444,545 | 9.1 s |
+
+Expansion drop **~1.6%** (< 5%): predicate is rare but sound; Figure 15 still appears among the first five Stories (Story 3).

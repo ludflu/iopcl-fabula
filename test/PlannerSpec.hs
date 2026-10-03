@@ -10,6 +10,7 @@ import IPOCL.Domains.Aladdin
 import IPOCL.Domains.Bribe
 import IPOCL.Domains.Tiny
 import IPOCL.Domains.Tower
+import IPOCL.IntentFeasible (intentAdoptForeverImpossible)
 import IPOCL.Order
 import IPOCL.Refine
 import IPOCL.Search
@@ -59,6 +60,13 @@ spec = do
         `shouldBe` []
     it "keeps recorded threats equal to threats computed from scratch" $
       mapM_ threatsAgree [towerProblem, motivatedTowerProblem, aladdinProblem]
+    it "does not queue forever-impossible intent flaws" $ do
+      let env = mkEnv aladdinProblem
+      [ ()
+        | Visited {evPlan = plan} <- take 3000 (search env defaultSearchConfig (initialPlan aladdinProblem))
+        , (s, c) <- planPendingIntent plan
+        , intentAdoptForeverImpossible plan s c
+        ] `shouldBe` []
     it "returns only valid plans across several solutions" $ do
       let r = solvePure defaultSolveConfig {cfgCount = 5, cfgMaxExpanded = Just 20000} bribeProblem
       length (resultStories r) `shouldSatisfy` (>= 2)

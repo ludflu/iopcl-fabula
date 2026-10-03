@@ -31,6 +31,7 @@ library
         IPOCL.Ground
         IPOCL.Plan
         IPOCL.Refine
+        IPOCL.IntentFeasible
         IPOCL.Report
         IPOCL.Heuristic
         IPOCL.Trace
@@ -82,6 +83,7 @@ test-suite spec
         Helpers
         FetchDomain
         IntentSpec
+        IntentFeasibleSpec
         JointSpec
         TraceSpec
         HeuristicSpec

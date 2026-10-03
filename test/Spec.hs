@@ -4,6 +4,7 @@ import BindingsSpec qualified
 import GroundSpec qualified
 import HeuristicSpec qualified
 import IntentSpec qualified
+import IntentFeasibleSpec qualified
 import JointSpec qualified
 import NarrateSpec qualified
 import RequiredSpec qualified
@@ -29,6 +30,7 @@ main = hspec $ do
   describe "Planner" PlannerSpec.spec
   describe "Validate" ValidateSpec.spec
   describe "Intent planning" IntentSpec.spec
+  describe "Intent feasibility" IntentFeasibleSpec.spec
   describe "Joint actions and intentional threats" JointSpec.spec
   describe "Trace" TraceSpec.spec
   describe "Heuristic search" HeuristicSpec.spec
