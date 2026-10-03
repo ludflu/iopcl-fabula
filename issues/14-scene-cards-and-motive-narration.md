@@ -17,13 +17,19 @@ Default narration also gains motives, added only where they help. In linearisati
 
 **Blocked by:** 08 (Narration and Graphviz).
 
-**Status:** todo
+**Status:** done
 
-- [ ] `solve --cards` prints one card per non-init, non-goal Step, in linearisation order.
-- [ ] Every causal and motivation link in the plan appears on exactly two cards: as "And so?" on its source and as "What happens" on its target.
-- [ ] A Step with no consumed effect is flagged on its card ("no consequence used"). A validated Story should never have one, so this is a sanity check.
-- [ ] Bribe narration introduces the Villain's goal of controlling the President at the first Step of his Interval, and closes it at Bribe.
-- [ ] A Frame whose Interval holds a single Step gets one combined clause, not two.
-- [ ] Golden tests for Bribe: the cards output and the updated narration.
+- [x] `solve --cards` prints one card per non-init, non-goal Step, in linearisation order.
+- [x] Every causal and motivation link in the plan appears on exactly two cards: as "And so?" on its source and as "What happens" on its target.
+- [x] A Step with no consumed effect is flagged on its card ("no consequence used"). A validated Story should never have one, so this is a sanity check.
+- [x] Bribe narration introduces the Villain's goal of controlling the President at the first Step of his Interval, and closes it at Bribe.
+- [x] A Frame whose Interval holds a single Step gets one combined clause, not two.
+- [x] Golden tests for Bribe: the cards output and the updated narration.
 
 **Notes:** Cron's "And so?" asks what the protagonist does next because of the scene. The plan's outgoing links are the mechanical version of that. When ticket 16 adds a Protagonist, the card can also show which of the Protagonist's Frames the Step leads to.
+
+## Result
+
+`solve --cards` (and `builtin … --cards`) prints the cards after the narration. `IPOCL.Cards` builds them as data (`SceneCard`, with incoming and outgoing `LinkRef`s) and renders them. A motivation link runs from the Motivating step to the first Step of the Frame's Interval. Links from init or to goal appear only on the card of the Step that has a card.
+
+Motive clauses use the existing predicate text, which is third person, so there is no infinitive form like "sets out to control". The first Step reads "villain coerces hero so that villain controls president." The final Step reads "villain bribes president with money, and so villain controls president." A single-Step Frame gets only the "so that" clause. The Bribe narration golden file is updated, and a `test/golden/bribe-cards.txt` golden file is added.

@@ -34,15 +34,14 @@ wingedProblem =
           }
     }
 
-smallProblems :: [(String, Mode, Problem)]
+smallProblems :: [(String, Problem)]
 smallProblems =
-  [ ("tiny", IPOCL, tinyProblem)
-  , ("tower", POCL, towerProblem)
-  , ("tower", IPOCL, towerProblem)
-  , ("motivated tower", IPOCL, motivatedTowerProblem)
-  , ("fetch", IPOCL, fetchProblem)
-  , ("sleepy", IPOCL, sleepyProblem)
-  , ("bribe", IPOCL, bribeProblem)
+  [ ("tiny", tinyProblem)
+  , ("tower", towerProblem)
+  , ("motivated tower", motivatedTowerProblem)
+  , ("fetch", fetchProblem)
+  , ("sleepy", sleepyProblem)
+  , ("bribe", bribeProblem)
   ]
 
 spec :: Spec
@@ -66,12 +65,12 @@ spec = do
       let r = solvePure defaultSolveConfig {cfgMaxExpanded = Just 100} aladdinProblem
       resultEnd r `shouldBe` LimitHit
       resultExpanded r `shouldBe` 100
-    forM_ smallProblems $ \(name, m, p) ->
-      it ("agrees with blind search about whether " <> name <> " (" <> show m <> ") has a story") $ do
-        let informed = solvePure defaultSolveConfig {cfgMode = m} p
-            blind = solvePure defaultSolveConfig {cfgMode = m, cfgHeuristic = Blind} p
+    forM_ smallProblems $ \(name, p) ->
+      it ("agrees with blind search about whether " <> name <> " has a story") $ do
+        let informed = solvePure defaultSolveConfig p
+            blind = solvePure defaultSolveConfig {cfgHeuristic = Blind} p
         resultEnd informed `shouldBe` resultEnd blind
-        mapM_ (`shouldBeValidFor` (m, p)) (resultStories informed ++ resultStories blind)
+        mapM_ (`shouldBeValidFor` p) (resultStories informed ++ resultStories blind)
   describe "Level A" $
     forM_ [("motivated tower", motivatedTowerProblem), ("bribe", bribeProblem), ("reduced Aladdin", marriageProblem)] $ \(name, p) ->
       it ("tells the " <> name <> " story in under 10 seconds") $ do

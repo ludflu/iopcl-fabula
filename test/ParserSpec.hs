@@ -105,6 +105,13 @@ spec = do
     it "rejects an unknown character in a preference" $
       check (oneAction (valid <> "    :effect (done ?x)")) (simpleProblem "\n  (:preferences (max-frames villain 2))")
         `shouldFailWith` "p.ipocl:2:17: preference names unknown character villain"
+    it "checks a relevance preference against the declared Protagonist" $ do
+      let domain = oneAction (valid <> "    :effect (done ?x)")
+      check domain (simpleProblem "\n  (:protagonist hero)\n  (:preferences (third-rail))") `shouldSatisfy` either (const False) (const True)
+      check domain (simpleProblem "\n  (:preferences (third-rail))") `shouldFailWith` "p.ipocl:2:17: preference third-rail needs a protagonist"
+    it "blames the problem file for problem issues outside preferences" $
+      check (oneAction (valid <> "    :effect (done ?x)")) (simpleProblem "\n  (:protagonist hero)\n  (:desire (done hero))")
+        `shouldFailWith` "p.ipocl: the protagonist hero does not intend the desire done(hero) in the initial state"
     it "reports unreadable files" $ do
       r <- loadProblem "domains/no-such-file.ipocl" "domains/tiny-problem.ipocl"
       r `shouldFailWith` "no-such-file"
@@ -115,10 +122,14 @@ spec = do
       property $ \(GenProblem p) -> roundTrip p === Right p
 
   describe "solve CLI" $ do
-    it "solves the Tower files in POCL mode" $ do
-      (code, out, _) <- readProcessWithExitCode "narrative-planning" ["solve", domainPath "tower", problemPath "tower", "--mode", "pocl"] ""
+    it "solves the motivated Tower files" $ do
+      (code, out, _) <- readProcessWithExitCode "narrative-planning" ["solve", domainPath "motivated-tower", problemPath "motivated-tower"] ""
       code `shouldBe` ExitSuccess
       out `shouldContain` "Story 1"
+    it "no longer accepts a planning mode" $ do
+      (code, _, err) <- readProcessWithExitCode "narrative-planning" ["solve", domainPath "tower", problemPath "tower", "--mode", "pocl"] ""
+      code `shouldBe` ExitFailure 1
+      err `shouldContain` "Invalid option"
     it "reports load errors on stderr and exits 1" $ do
       (code, out, err) <- readProcessWithExitCode "narrative-planning" ["solve", domainPath "tower", domainPath "tower"] ""
       code `shouldBe` ExitFailure 1
@@ -178,6 +189,7 @@ genSchema = do
     <*> small (genPrecond params)
     <*> small (genLiteral params 2)
     <*> oneof [pure Nothing, Just <$> genTemplate]
+    <*> oneof [pure Nothing, Just <$> genTemplate]
 
 genDomain :: Gen Domain
 genDomain =
@@ -196,6 +208,10 @@ genPreference = Preference <$> rule <*> strength
         , ForbidGoal <$> who <*> genLiteral [] 2
         , MaxFrames <$> who <*> chooseInt (0, 10)
         , pure NoRepeatSteps
+        , pure ThirdRail
+        , ServesProtagonist <$> who
+        , MaxBackstory <$> chooseInt (0, 10)
+        , pure MisbeliefBlocks
         ]
     strength = oneof [pure Hard, Soft <$> chooseInt (0, 10000)]
 
@@ -208,3 +224,9 @@ genProblem =
     <*> (Set.fromList <$> small (genAtom [] 2))
     <*> small (genLiteral [] 2)
     <*> small genPreference
+    <*> small (RequiredFrame . Symbol <$> identifier <*> genLiteral [] 2 <*> arbitrary)
+    <*> oneof [pure Nothing, Just . Symbol <$> identifier]
+    <*> oneof [pure Nothing, Just <$> genLiteral [] 2]
+    <*> small (genAtom [] 2)
+    <*> small (genAtom [] 2)
+    <*> oneof [pure defaultBackstoryCost, BackstoryCost <$> chooseInt (0, 20) <*> chooseInt (0, 20)]

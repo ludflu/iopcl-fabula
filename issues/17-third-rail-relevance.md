@@ -17,10 +17,20 @@ Add a validator lint, "an internal change must lead to action": every Realizatio
 
 **Blocked by:** 11 (Author preferences), 16 (Protagonist, Desire, Misbelief, and Realization).
 
-**Status:** todo
+**Status:** done
 
-- [ ] On a test problem with an irrelevant side plot that is still on the Outcome's causal chain, a hard `third-rail` yields a Story without it.
-- [ ] A hard `third-rail` never prunes a partial plan. A test checks that a partial plan whose Step lacks a path so far is still expanded.
-- [ ] `serves-protagonist` has hard and soft tests.
-- [ ] The internal-change lint has a test plan that triggers it and one that doesn't.
-- [ ] `spec.md` §4.12 documents that soft third-rail penalties can decrease, unlike the other preferences.
+- [x] On a test problem with an irrelevant side plot that is still on the Outcome's causal chain, a hard `third-rail` yields a Story without it.
+- [x] A hard `third-rail` never prunes a partial plan. A test checks that a partial plan whose Step lacks a path so far is still expanded.
+- [x] `serves-protagonist` has hard and soft tests.
+- [x] The internal-change lint has a test plan that triggers it and one that doesn't.
+- [x] `spec.md` §4.12 documents that soft third-rail penalties can decrease, unlike the other preferences.
+
+## Result
+
+The preference rules gain `ThirdRail` and `ServesProtagonist c` (`(third-rail)` and `(serves-protagonist c)` in problem files). `violations`, `hardViolated` and `softPenalty` now take the `Problem`, because the arc depends on the Protagonist and their Misbeliefs. `hardViolated`, which drives pruning, skips the relevance rules. The new `finalViolated` checks every hard rule, and `expand` calls it at the goal test, so a complete plan that breaks one is a dead end. `protagonistArc` builds the arc. Paths follow causal links, plus motivation links from a Motivating step to every member of its Interval.
+
+`IPOCL.Lint.planWarnings` implements the internal-change lint, and the CLI prints it per Story to stderr. `RelevanceSpec` extends the misbelief problem with a dog that the Outcome needs fed:
+- With no preferences, Henry feeds it, which is irrelevant to Ruby.
+- A hard `third-rail`, or a hard or soft `serves-protagonist henry`, makes Ruby notice the hunger and feed the dog herself.
+
+`spec.md` §4.12 documents the rules and the fact that their counts can decrease.

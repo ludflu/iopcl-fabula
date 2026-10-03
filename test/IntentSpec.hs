@@ -17,7 +17,7 @@ import Test.Hspec
 
 visitedPlans :: Problem -> Int -> [(Int, Maybe Int, Plan)]
 visitedPlans p n =
-  take n [(evNode e, evParent e, evPlan e) | e@Visited {} <- search (mkEnv IPOCL p) defaultSearchConfig (initialPlan p)]
+  take n [(evNode e, evParent e, evPlan e) | e@Visited {} <- search (mkEnv p) defaultSearchConfig (initialPlan p)]
 
 -- | The intent flaws Fig. 5 would propose for the refinement parent -> child:
 -- condition 1 for a newly linked establisher, condition 2 for a new
@@ -61,8 +61,8 @@ eagerCandidates parent child = nub (cond1 ++ cond2 ++ spreading)
 spec :: Spec
 spec = do
   it "tells the bribe story with Coerce inside the Villain's Frame" $ do
-    plan <- firstStory IPOCL bribeProblem
-    plan `shouldBeValidFor` (IPOCL, bribeProblem)
+    plan <- firstStory bribeProblem
+    plan `shouldBeValidFor` bribeProblem
     storyLabels plan `shouldMatchList` ["coerce(villain, hero, has(villain, money))", "give(hero, villain, money)", "bribe(villain, president, money)"]
     let frames = frameSummary plan
     [(g, ss, m) | ("villain", g, ss, m) <- frames]

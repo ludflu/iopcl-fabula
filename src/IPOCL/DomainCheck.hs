@@ -13,6 +13,9 @@ import IPOCL.Syntax
 -- | Every problem found; an empty list means the problem is usable.
 checkProblem :: Problem -> [Text]
 checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPreference (problemPreferences p)
+    ++ concatMap checkRequired (problemRequiredFrames p)
+    ++ checkInnerStory
+    ++ concatMap checkBackstory (problemBackstory p)
   where
     d = problemDomain p
     statics = staticPredicates d
@@ -45,4 +48,37 @@ checkProblem p = concatMap checkSchema (domainSchemas d) ++ concatMap checkPrefe
       ForbidGoal c _ -> unknown c
       MaxFrames c _ -> unknown c
       NoRepeatSteps -> []
+      ThirdRail -> needsProtagonist "third-rail"
+      ServesProtagonist c -> unknown c ++ needsProtagonist "serves-protagonist"
+      MaxBackstory _ -> []
+      MisbeliefBlocks -> needsProtagonist "misbelief-blocks"
+    needsProtagonist n = ["preference " <> n <> " needs a protagonist" | Nothing <- [problemProtagonist p]]
+    checkRequired (RequiredFrame c g _) =
+      ["required frame names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]
+        ++ ["required frame goal " <> prettyLiteral g <> " must be ground" | not (isGroundLiteral g)]
+        ++ ["required frame goal may not be an intention" | isIntends g]
+    checkInnerStory =
+      [ "protagonist " <> symbolText c <> " is not a character"
+      | Just c <- [problemProtagonist p]
+      , not (Set.member c (problemCharacters p))
+      ]
+        ++ ["a desire needs a protagonist" | Nothing <- [problemProtagonist p], Just _ <- [problemDesire p]]
+        ++ [ "the protagonist " <> symbolText c <> " does not intend the desire " <> prettyLiteral g <> " in the initial state"
+           | Just c <- [problemProtagonist p]
+           , Just g <- [problemDesire p]
+           , not (Set.member (Atom intendsPredicate [TSym c, TLit g]) (problemInit p))
+           ]
+        ++ concatMap checkMisbelief (problemMisbeliefs p)
+    checkBackstory a =
+      let name = "possible backstory " <> prettyAtom a
+       in [name <> " already holds in the initial state" | Set.member a (problemInit p)]
+            ++ [name <> " uses the constraint predicate " <> atomPredicate a | atomPredicate a `Set.member` statics]
+            ++ [name <> " must be ground" | not (null (atomVars a))]
+    checkMisbelief m =
+      let name = "misbelief " <> prettyAtom m
+       in [name <> " is not a believes fact" | atomPredicate m /= believesPredicate]
+            ++ [name <> " does not hold in the initial state" | not (Set.member m (problemInit p))]
+            ++ case atomArgs m of
+              TSym c : _ : _ | Set.member c (problemCharacters p) -> []
+              _ -> [name <> ": its first argument must be a character, followed by the belief"]
     unknown c = ["preference names unknown character " <> symbolText c | not (Set.member c (problemCharacters p))]

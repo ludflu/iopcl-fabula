@@ -1,0 +1,3 @@
+# Remove the plain POCL mode
+
+The planner used to have a `Mode` (`IPOCL | POCL`), selected with `--mode`, where POCL turned off frame discovery, intent flaws, the Orphan goal test and frame validation. That made it the Figure 1 baseline of `spec.md` §1.2. We removed it, so every plan is now planned and validated for intentionality. The Story Genius features (Required Frames, the Desire, failed attempts, relevance preferences) are all defined in terms of Frames and meant nothing in POCL mode. Each one needed its own `envMode` guard, and the tests had to cover both modes. A soundness-only plan can still be studied by validating a Story's causal structure, and the paper's POCL results are in the paper.

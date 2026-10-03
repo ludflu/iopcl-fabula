@@ -37,7 +37,9 @@ library
         IPOCL.Search
         IPOCL.Validate
         IPOCL.Linearize
+        IPOCL.Lint
         IPOCL.Narrate
+        IPOCL.Cards
         IPOCL.Dot
         IPOCL.Parser
         IPOCL.Preferences
@@ -87,6 +89,12 @@ test-suite spec
         StoriesSpec
         SmallDomains
         NarrateSpec
+        RequiredSpec
+        InnerStorySpec
+        RelevanceSpec
+        BackstorySpec
+        FailedSpec
+        TickingSpec
     build-depends:
         base,
         containers,

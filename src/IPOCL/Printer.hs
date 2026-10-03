@@ -29,8 +29,23 @@ printProblem Problem {..} =
     ]
       ++ closeLast ("  (:init" : map (("    " <>) . printAtom) (Set.toList problemInit))
       ++ ["  (:goal " <> printConj (map printLiteral problemOutcome) <> ")"]
+      ++ requiredSection
+      ++ innerStory
+      ++ backstory
       ++ preferences
   where
+    requiredSection
+      | null problemRequiredFrames = []
+      | otherwise = closeLast ("  (:required-frames" : ["    " <> sexp ([symbolText c, printLiteral g] ++ [":fail-first" | ff]) | RequiredFrame c g ff <- problemRequiredFrames])
+    backstory =
+      (if null problemBackstory then [] else closeLast ("  (:possible-backstory" : map (("    " <>) . printAtom) problemBackstory))
+        ++ [ "  (:backstory-cost :fact " <> showT (bcFact problemBackstoryCost) <> " :intention " <> showT (bcIntention problemBackstoryCost) <> ")"
+           | problemBackstoryCost /= defaultBackstoryCost
+           ]
+    innerStory =
+      ["  " <> sexp [":protagonist", symbolText c] | Just c <- [problemProtagonist]]
+        ++ ["  " <> sexp [":desire", printLiteral g] | Just g <- [problemDesire]]
+        ++ (if null problemMisbeliefs then [] else closeLast ("  (:misbeliefs" : map (("    " <>) . printAtom) problemMisbeliefs))
     preferences
       | null problemPreferences = []
       | otherwise = closeLast ("  (:preferences" : map (("    " <>) . printPreference) problemPreferences)
@@ -47,6 +62,7 @@ printAction ActionSchema {..} =
       ++ [field "precondition" (printConj (map printPrecond schemaPrecondition)) | not (null schemaPrecondition)]
       ++ [field "effect" (printConj (map printLiteral schemaEffect)) | not (null schemaEffect)]
       ++ [field "text" (printString (renderTemplate t)) | Just t <- [schemaText]]
+      ++ [field "attempt-text" (printString (renderTemplate t)) | Just t <- [schemaAttemptText]]
   where
     field k v = "    :" <> k <> " " <> v
 
@@ -62,6 +78,10 @@ printPreference (Preference rule strength) = sexp (ruleParts ++ strengthParts)
       ForbidGoal c l -> ["forbid-goal", symbolText c, printLiteral l]
       MaxFrames c n -> ["max-frames", symbolText c, showT n]
       NoRepeatSteps -> ["no-repeat-steps"]
+      ThirdRail -> ["third-rail"]
+      ServesProtagonist c -> ["serves-protagonist", symbolText c]
+      MaxBackstory n -> ["max-backstory", showT n]
+      MisbeliefBlocks -> ["misbelief-blocks"]
     strengthParts = case strength of
       Hard -> [":hard"]
       Soft 10 -> []

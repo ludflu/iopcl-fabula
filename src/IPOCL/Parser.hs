@@ -12,6 +12,7 @@ import Control.Monad (void, when)
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.List (find)
 import Data.Either (lefts)
+import Data.Maybe (fromMaybe, listToMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -38,11 +39,12 @@ checkedProblem :: FilePath -> Text -> FilePath -> Text -> Either Text Problem
 checkedProblem dPath dText pPath pText = do
   (d, actionPos) <- runP domainFile dPath dText
   (p, prefPos) <- runP (problemFile d) pPath pText
-  let schemaIssues = map (locateAction dPath actionPos) (checkProblem p {problemPreferences = []})
+  let schemaIssues = map (locateAction pPath actionPos) (checkProblem p {problemPreferences = []})
       prefIssues =
         [ located sp issue
         | (pr, sp) <- zip (problemPreferences p) prefPos
         , issue <- checkProblem p {problemDomain = d {domainSchemas = []}, problemPreferences = [pr]}
+        , "preference " `T.isPrefixOf` issue
         ]
   case schemaIssues ++ prefIssues of
     [] -> Right p
@@ -61,11 +63,12 @@ runP p path src = either (Left . T.pack . errorBundlePretty) Right (parse p path
 located :: SourcePos -> Text -> Text
 located sp msg = T.pack (sourcePosPretty sp) <> ": " <> msg
 
+-- | Action issues point into the domain file; the rest are about the problem.
 locateAction :: FilePath -> [(Text, SourcePos)] -> Text -> Text
-locateAction path actionPos issue =
+locateAction problemPath actionPos issue =
   case find (\(n, _) -> ("action " <> n <> ": ") `T.isPrefixOf` issue) actionPos of
     Just (_, sp) -> located sp issue
-    Nothing -> T.pack path <> ": " <> issue
+    Nothing -> T.pack problemPath <> ": " <> issue
 
 -- Lexing ------------------------------------------------------------------
 
@@ -157,6 +160,7 @@ data Field
   | FPre [Precond]
   | FEff [Literal]
   | FText Template
+  | FAttemptText Template
 
 domainFile :: P (Domain, [(Text, SourcePos)])
 domainFile = between sc eof . parens $ do
@@ -195,6 +199,7 @@ action = do
         , keyed "precondition" (FPre <$> conj precondBody)
         , keyed "effect" (FEff <$> conj literalBody)
         , keyed "text" (FText . template <$> stringLit)
+        , keyed "attempt-text" (FAttemptText . template <$> stringLit)
         ]
   uniqueKeys [(fo, k) | (fo, k, _) <- fields]
   when (null [() | (_, _, FParams _) <- fields]) $ failAt o ("action " <> n <> " has no :parameters")
@@ -206,6 +211,7 @@ action = do
         FPre ps -> s {schemaPrecondition = ps}
         FEff es -> s {schemaEffect = es}
         FText t -> s {schemaText = Just t}
+        FAttemptText t -> s {schemaAttemptText = Just t}
   pure (foldl' setField (schema n []) [f | (_, _, f) <- fields], sp)
 
 -- Problems ----------------------------------------------------------------
@@ -215,6 +221,12 @@ data Section
   | SInit [Atom]
   | SGoal [Literal]
   | SPrefs [(Preference, SourcePos)]
+  | SRequired [RequiredFrame]
+  | SProtagonist Symbol
+  | SDesire Literal
+  | SMisbeliefs [Atom]
+  | SBackstory [Atom]
+  | SBackstoryCost BackstoryCost
 
 problemFile :: Domain -> P (Problem, [SourcePos])
 problemFile d = between sc eof . parens $ do
@@ -231,6 +243,12 @@ problemFile d = between sc eof . parens $ do
         , keyed "init" (SInit <$> many (parens atomBody))
         , keyed "goal" (SGoal <$> conj literalBody)
         , keyed "preferences" (SPrefs <$> many (flip (,) <$> getSourcePos <*> parens preferenceBody))
+        , keyed "required-frames" (SRequired <$> many (parens (RequiredFrame . Symbol <$> name <*> literalP <*> (True <$ keyword ":fail-first" <|> pure False))))
+        , keyed "protagonist" (SProtagonist . Symbol <$> name)
+        , keyed "desire" (SDesire <$> literalP)
+        , keyed "misbeliefs" (SMisbeliefs <$> many (parens atomBody))
+        , keyed "possible-backstory" (SBackstory <$> many (parens atomBody))
+        , keyed "backstory-cost" (SBackstoryCost <$> (BackstoryCost <$> (keyword ":fact" *> integer) <*> (keyword ":intention" *> integer)))
         ]
   uniqueKeys [(so, k) | (so, k, _) <- sections]
   let prefs = concat [ps | (_, _, SPrefs ps) <- sections]
@@ -242,6 +260,12 @@ problemFile d = between sc eof . parens $ do
         , problemInit = Set.fromList (concat [as | (_, _, SInit as) <- sections])
         , problemOutcome = concat [gs | (_, _, SGoal gs) <- sections]
         , problemPreferences = map fst prefs
+        , problemRequiredFrames = concat [rs | (_, _, SRequired rs) <- sections]
+        , problemProtagonist = listToMaybe [c | (_, _, SProtagonist c) <- sections]
+        , problemDesire = listToMaybe [g | (_, _, SDesire g) <- sections]
+        , problemMisbeliefs = concat [ms | (_, _, SMisbeliefs ms) <- sections]
+        , problemBackstory = concat [as | (_, _, SBackstory as) <- sections]
+        , problemBackstoryCost = fromMaybe defaultBackstoryCost (listToMaybe [c | (_, _, SBackstoryCost c) <- sections])
         }
     , map snd prefs
     )
@@ -256,6 +280,10 @@ preferenceBody = Preference <$> rule <*> strength
         , keyword "forbid-goal" *> (ForbidGoal <$> character <*> literalP)
         , keyword "max-frames" *> (MaxFrames <$> character <*> integer)
         , NoRepeatSteps <$ keyword "no-repeat-steps"
+        , ThirdRail <$ keyword "third-rail"
+        , keyword "serves-protagonist" *> (ServesProtagonist <$> character)
+        , keyword "max-backstory" *> (MaxBackstory <$> integer)
+        , MisbeliefBlocks <$ keyword "misbelief-blocks"
         ]
     strength =
       (Hard <$ keyword ":hard")

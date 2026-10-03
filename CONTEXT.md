@@ -77,6 +77,10 @@ _Avoid_: Interval of intentionality (long form is fine in prose)
 **Required Frame**:
 A Character–Character goal pair, named by the author, that every Story must contain as a Frame. The Character goal need only become true at some point, not hold at the end.
 
+**Milestone** (proposed, ADR-0005):
+A literal, named by the author, that must become true at some point in every Story, established by any Step. A Required Frame without the Frame.
+_Avoid_: Author goal (fine in prose), checkpoint
+
 **Failed Frame**:
 A Frame whose Character goal is never achieved, because its attempted Step was blocked.
 _Avoid_: Failed intention (fine in prose), abandoned frame

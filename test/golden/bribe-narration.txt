@@ -1,5 +1,5 @@
 villain wants villain controls president.
-villain coerces hero.
+villain coerces hero so that villain controls president.
 hero wants villain has money.
-hero gives money to villain.
-villain bribes president with money.
+hero gives money to villain so that villain has money.
+villain bribes president with money, and so villain controls president.

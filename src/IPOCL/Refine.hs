@@ -35,42 +35,49 @@ import IPOCL.Syntax
 
 data Env = Env
   { envProblem :: !Problem
-  , envMode :: !Mode
   , envActions :: ![GroundAction]
   , envEffectIndex :: !(Map (Bool, Text) [(GroundAction, Literal)])
+  , envAttemptIndex :: Map (Bool, Text) [(GroundAction, Literal)]
+  -- ^ Like 'envEffectIndex' over every ground action, reachable or not: an
+  -- attempt may be blocked by a precondition nothing can achieve. Lazy.
   , envInit :: !(Set Atom)
   , envPrune :: Plan -> Bool
   -- ^ Hard pruning (e.g. hard Author preferences); 'True' drops the plan.
   }
 
-mkEnv :: Mode -> Problem -> Env
-mkEnv mode p = mkEnvWith mode p (groundActions p)
+mkEnv :: Problem -> Env
+mkEnv p = mkEnvWith p (groundActions p)
 
-mkEnvWith :: Mode -> Problem -> [GroundAction] -> Env
-mkEnvWith mode p gas =
+mkEnvWith :: Problem -> [GroundAction] -> Env
+mkEnvWith p gas =
   Env
     { envProblem = p
-    , envMode = mode
     , envActions = gas
-    , envEffectIndex = Map.fromListWith (flip (++)) [((litPositive e, atomPredicate (litAtom e)), [(g, e)]) | g <- gas, e <- gaEff g]
+    , envEffectIndex = effectIndex gas
+    , envAttemptIndex = effectIndex (groundActions p)
     , envInit = problemInit p
-    , envPrune = hardViolated (problemPreferences p)
+    , envPrune = hardViolated p (problemPreferences p)
     }
+
+effectIndex :: [GroundAction] -> Map (Bool, Text) [(GroundAction, Literal)]
+effectIndex gas = Map.fromListWith (flip (++)) [((litPositive e, atomPredicate (litAtom e)), [(g, e)]) | g <- gas, e <- gaEff g]
 
 data Child = Child {childPlan :: !Plan, childReason :: !Text}
 
 data Expansion
   = Solution
   | DeadEnd !(Maybe Flaw)
-  -- ^ The flaw that cannot be repaired, or 'Nothing' when only Orphans remain.
+  -- ^ The flaw that cannot be repaired, or 'Nothing' for a flawless plan with
+  -- Orphans or a broken hard relevance preference.
   | Refined !Flaw ![Child]
 
 -- | All flaws of a plan: threats first, then the rest in tie-break order.
-flaws :: Env -> Plan -> [Flaw]
-flaws _ plan =
+flaws :: Plan -> [Flaw]
+flaws plan =
   causalThreats plan
     ++ intentionalThreats plan
     ++ [OpenMotivation (frameId f) | f <- IM.elems (planFrames plan), isNothing (frameMotivator f)]
+    ++ [OpenAttempt s | s <- planOpenAttempts plan]
     ++ [OpenCondition s l | (s, l) <- planOpenConds plan]
     ++ [IntentFlaw s c | (s, c) <- planPendingIntent plan]
 
@@ -83,9 +90,10 @@ isThreat = \case
 -- | Select a flaw and produce its children, or recognise a solution / dead end.
 -- Threats are repaired first; otherwise the flaw with the fewest children.
 expand :: Env -> Plan -> Expansion
-expand env plan = case flaws env plan of
+expand env plan = case flaws plan of
   []
-    | envMode env == IPOCL && not (null (orphans plan)) -> DeadEnd Nothing
+    | not (null (orphans plan)) -> DeadEnd Nothing
+    | finalViolated (envProblem env) (problemPreferences (envProblem env)) plan -> DeadEnd Nothing
     | otherwise -> Solution
   f : _ | isThreat f -> result f (refine env plan f)
   fs -> case sortOn fst [((estimate fl, i), fl) | (i, fl) <- zip [0 :: Int ..] fs] of
@@ -108,6 +116,7 @@ refinementEstimate env plan = \case
   IntentFlaw {} -> 2
   CausalThreat {} -> 3
   IntentionalThreat {} -> 2
+  OpenAttempt s -> length (openAttempt env plan s)
 
 refine :: Env -> Plan -> Flaw -> [Child]
 refine env plan = \case
@@ -116,6 +125,7 @@ refine env plan = \case
   OpenMotivation c -> openMotivation env plan c
   IntentFlaw s c -> resolveIntentFlaw env plan s c
   IntentionalThreat a b -> resolveIntentionalThreat env plan a b
+  OpenAttempt s -> openAttempt env plan s
 
 -- Intentional threats -------------------------------------------------------
 
@@ -172,11 +182,13 @@ litKey :: Literal -> (Bool, Text)
 litKey l = (litPositive l, atomPredicate (litAtom l))
 
 -- | @t@ may fall inside @l@ and assert the negation of its condition. Adding
--- orderings or bindings can only make this false, never true.
+-- orderings or bindings can only make this false, never true. An attempted Step
+-- has no effects, so it threatens nothing.
 threatens :: Plan -> CausalLink -> Step -> Bool
 threatens plan l t =
   stepId t /= linkFrom l
     && stepId t /= linkTo l
+    && not (isUnexecuted plan (stepId t))
     && possiblyBefore o (linkFrom l) (stepId t)
     && possiblyBefore o (stepId t) (linkTo l)
     && any (\e -> litKey e == litKey clobber && isJust (unifyLiterals (planBindings plan) e clobber)) (stepEff t)
@@ -235,9 +247,15 @@ openCondition env plan0 sNeed p =
   | est <- establishers env plan [sNeed] p
   , Just linked <- [link est]
   , (plan', note) <- afterEstablish env est linked
+  , fulfils plan' (estStep est)
   ]
   where
     plan = plan0 {planOpenConds = filter (/= (sNeed, p)) (planOpenConds plan0)}
+    -- A Required Frame's pseudo-step is supported only by the final Step of a
+    -- Frame of its Character for this goal (ADR-0004).
+    fulfils pl sAdd = case IM.lookup sNeed (planRequired pl) of
+      Just c -> any (\f -> frameFinal f == Just sAdd && resolvedGoal pl f == resolveLiteral (planBindings pl) p) (framesOf pl c)
+      Nothing -> True
     link (Establisher pl sAdd _) = do
       o <- addOrder sAdd sNeed (planOrder pl)
       let l = CausalLink sAdd p sNeed
@@ -260,12 +278,63 @@ openMotivation env plan fid = case IM.lookup fid (planFrames plan) of
         , (plan', note) <- afterEstablish env est motivated
         ]
 
+-- Attempt planning ------------------------------------------------------------
+
+-- | Give a ':fail-first' Required Frame its failed Frame (ADR-0003): a new,
+-- unexecuted Step that would achieve the goal for the Character, with exactly
+-- one precondition replaced by an open condition for its negation.
+openAttempt :: Env -> Plan -> StepId -> [Child]
+openAttempt env plan0 ps = case (IM.lookup ps (planRequired plan), IM.lookup ps (planSteps plan)) of
+  (Just c, Just pseudo)
+    | [g] <- stepPre pseudo
+    , not (any (\f -> isNothing (frameFinal f) && resolvedGoal plan f == g) (framesOf plan c)) ->
+        [ Child pl' ("attempt " <> stepLabel pl' st <> " by " <> symbolText c <> ", blocked by " <> prettyLiteral (resolveLiteral (planBindings pl') (negateLit q)))
+        | let k = planNextStep plan
+        , (ga, e) <- Map.findWithDefault [] (litPositive g, atomPredicate (litAtom g)) (envAttemptIndex env)
+        , not (gaHappening ga)
+        , c `elem` gaActors ga
+        , Just b' <- [unifyLiterals (planBindings plan) (instantiateLiteral k e) g]
+        , Just est <- [addStep ga k plan {planBindings = b'}]
+        , Just st <- [IM.lookup k (planSteps (estPlan est))]
+        , q <- nub (stepPre st)
+        , Just pl' <- [finalize env (attempt (estPlan est) k c g q)]
+        ]
+  _ -> []
+  where
+    plan = plan0 {planOpenAttempts = filter (/= ps) (planOpenAttempts plan0)}
+    attempt pl k c g q =
+      let fid = planNextFrame pl
+       in pl
+            { planOpenConds = map (\oc -> if oc == (k, q) then (k, negateLit q) else oc) (planOpenConds pl)
+            , planUnexecuted = IS.insert k (planUnexecuted pl)
+            , planFrames = IM.insert fid (Frame fid c g Nothing (IS.singleton k) Nothing (Just k)) (planFrames pl)
+            , planNextFrame = fid + 1
+            , planFailFirst = IM.insert ps fid (planFailFirst pl)
+            }
+
+-- | Order each failed Frame entirely before the successful Frame that fulfils
+-- the same ':fail-first' Required Frame, once both exist; 'Nothing' if they
+-- cannot be ordered that way.
+orderFailFirst :: Plan -> Maybe Plan
+orderFailFirst plan0 = foldM one plan0 (IM.toList (planFailFirst plan0))
+  where
+    one pl (ps, ff) = case (IM.lookup ff (planFrames pl), successOf pl ps) of
+      (Just failed, Just sf)
+        | not (Set.member (ff, frameId sf) (planFrameOrder pl)) -> do
+            o <- foldM (\acc (x, y) -> addOrder x y acc) (planOrder pl) [(x, y) | x <- IS.toList (frameInterval failed), y <- IS.toList (frameInterval sf)]
+            Just pl {planOrder = o, planFrameOrder = Set.insert (ff, frameId sf) (planFrameOrder pl)}
+      _ -> Just pl
+    successOf pl ps =
+      case [f | l <- Set.toList (planLinks pl), linkTo l == ps, f <- IM.elems (planFrames pl), frameFinal f == Just (linkFrom l)] of
+        f : _ -> Just f
+        [] -> Nothing
+
 -- Shared by causal and motivation planning: frame discovery on new Steps,
 -- then bookkeeping and pruning.
 afterEstablish :: Env -> Establisher -> Plan -> [(Plan, Text)]
 afterEstablish env est pl0 =
   [ (pl'', note)
-  | (pl', note) <- if estNew est then discoverFrames env (estStep est) pl else [(pl, "")]
+  | (pl', note) <- if estNew est then discoverFrames (estStep est) pl else [(pl, "")]
   , Just pl'' <- [finalize env pl']
   ]
   where
@@ -276,16 +345,13 @@ afterEstablish env est pl0 =
 -- Hard preferences never read the intent fields, so pruning first is safe.
 finalize :: Env -> Plan -> Maybe Plan
 finalize env pl0 = do
-  pl <- keep env pl0
-  if envMode env == POCL
-    then Just pl
-    else
-      let fresh = nub [c | c <- intentCandidates pl, not (Set.member c (planProposedIntent pl))]
-       in Just
-            pl
-              { planPendingIntent = fresh ++ planPendingIntent pl
-              , planProposedIntent = foldr Set.insert (planProposedIntent pl) fresh
-              }
+  pl <- orderFailFirst pl0 >>= keep env
+  let fresh = nub [c | c <- intentCandidates pl, not (Set.member c (planProposedIntent pl))]
+  Just
+    pl
+      { planPendingIntent = fresh ++ planPendingIntent pl
+      , planProposedIntent = foldr Set.insert (planProposedIntent pl) fresh
+      }
 
 -- | Step-Frame pairs that could explain the Step (ADR-0002): the Step shares
 -- the Frame's Character and either (1) causally supports a member of the
@@ -296,7 +362,7 @@ intentCandidates plan = cond1 ++ cond2
     frames = IM.elems (planFrames plan)
     links = Set.toList (planLinks plan)
     eligible s c = case IM.lookup s (planSteps plan) of
-      Just st -> not (stepHappening st) && frameCharacter c `elem` stepActors st && not (IS.member s (frameInterval c))
+      Just st -> not (stepHappening st) && not (isUnexecuted plan s) && frameCharacter c `elem` stepActors st && not (IS.member s (frameInterval c))
       Nothing -> False
     serves s c = any (\l -> linkFrom l == s && IS.member (linkTo l) (frameInterval c)) links
     cond1 = [(linkFrom l, frameId c) | l <- links, c <- frames, IS.member (linkTo l) (frameInterval c), eligible (linkFrom l) c]
@@ -327,24 +393,53 @@ resolveIntentFlaw env plan0 s c =
           frameOrder = Set.toList (planFrameOrder plan)
           orderings =
             [(m, s) | Just m <- [frameMotivator f]]
-              ++ [(s, fin) | Just fin <- [frameFinal f], fin /= s]
+              ++ [(s, fin) | Just fin <- [frameEnd f], fin /= s]
               ++ [(s, x) | (a, later) <- frameOrder, a == c, x <- members later]
               ++ [(x, s) | (earlier, b) <- frameOrder, b == c, x <- members earlier]
       o <- foldM (\acc (x, y) -> addOrder x y acc) (planOrder plan) orderings
       finalize env plan {planOrder = o, planFrames = IM.insert c f {frameInterval = IS.insert s (frameInterval f)} (planFrames plan)}
 
 -- | Every child passes through here, so it is where recorded threats are
--- re-checked against the child's new orderings and bindings.
+-- re-checked against the child's new orderings and bindings. A child with a
+-- threat that no ordering or separation can repair is dropped now rather than
+-- expanded into a dead end.
 keep :: Env -> Plan -> Maybe Plan
-keep env pl = if envPrune env pl then Nothing else Just (recheckThreats pl)
+keep env pl
+  | envPrune env pl = Nothing
+  | all (repairable checked) (Set.toList (planThreats checked)) = Just checked
+  | otherwise = Nothing
+  where
+    checked = recheckThreats pl
+
+-- | Some promotion, demotion or separation of the threat is consistent.
+repairable :: Plan -> (CausalLink, Down StepId) -> Bool
+repairable plan (l, Down t) =
+  isJust (addOrder (linkTo l) t o)
+    || isJust (addOrder t (linkFrom l) o)
+    || not (null separations)
+  where
+    o = planOrder plan
+    b = planBindings plan
+    cond = resolveLiteral b (negateLit (linkCond l))
+    separations =
+      [ ()
+      | Just step <- [IM.lookup t (planSteps plan)]
+      , e <- map (resolveLiteral b) (stepEff step)
+      , litPositive e == litPositive cond
+      , isJust (unifyLiterals b e cond)
+      , e /= cond
+      , (x, y) <- zip (atomArgs (litAtom e)) (atomArgs (litAtom cond))
+      , x /= y
+      , Just _ <- [addNeq b x y]
+      ]
 
 -- Frame discovery -------------------------------------------------------------
 
 -- | For a new non-Happening Step, each Actor independently either intends one
 -- of the Step's effects (a new Frame with this Step as its final Step) or not.
-discoverFrames :: Env -> StepId -> Plan -> [(Plan, Text)]
-discoverFrames env s plan = case IM.lookup s (planSteps plan) of
-  Just st | envMode env == IPOCL, not (stepHappening st) -> foldM (choose st) (plan, "") (stepActors st)
+discoverFrames :: StepId -> Plan -> [(Plan, Text)]
+discoverFrames s plan = case IM.lookup s (planSteps plan) of
+  Just st | not (stepHappening st) -> foldM (choose st) (plan, "") (stepActors st)
   _ -> [(plan, "")]
   where
     choose st (pl, note) actor =
@@ -354,10 +449,10 @@ discoverFrames env s plan = case IM.lookup s (planSteps plan) of
           , Just pl' <- [newFrame pl actor e]
           ]
     newFrame pl actor e
-      | any (\f -> resolvedGoal pl f == resolveLiteral (planBindings pl) e) (framesOf pl actor) = Nothing
+      | any (\f -> isJust (frameFinal f) && resolvedGoal pl f == resolveLiteral (planBindings pl) e) (framesOf pl actor) = Nothing
       | otherwise =
           let k = planNextFrame pl
-              f = Frame k actor e (Just s) (IS.singleton s) Nothing
+              f = Frame k actor e (Just s) (IS.singleton s) Nothing Nothing
            in Just pl {planFrames = IM.insert k f (planFrames pl), planNextFrame = k + 1}
 
 establishReason :: Plan -> Establisher -> Literal -> Text
@@ -378,22 +473,39 @@ data Establisher = Establisher
 -- | Ways to make @p@ true before all of @later@, via existing Steps (including
 -- the initial state under the closed-world assumption) or a new Step.
 establishers :: Env -> Plan -> [StepId] -> Literal -> [Establisher]
-establishers env plan later p = existing ++ closedWorld ++ new
+establishers env plan later p = existing ++ closedWorld ++ backstory ++ new
   where
     b = planBindings plan
+    candidates = problemBackstory (envProblem env)
     existing =
       [ Establisher plan {planBindings = b'} (stepId s) False
       | s <- planStepList plan
+      , not (isUnexecuted plan (stepId s))
       , all (possiblyBefore (planOrder plan) (stepId s)) later
       , e <- stepEff s
       , Just b' <- [unifyLiterals b e p]
       ]
+    -- Possible backstory is unknown rather than false until committed.
     closedWorld =
       [ Establisher plan initStepId False
       | not (litPositive p)
       , let a = resolveAtom b (litAtom p)
-      , not (any (\i -> isJust (unifyAtoms b i a)) (Set.toList (envInit env)))
+      , not (any (\i -> isJust (unifyAtoms b i a)) (Set.toList (envInit env) ++ candidates))
       ]
+    backstory =
+      [ Establisher (commit a plan {planBindings = b'}) initStepId False
+      | litPositive p
+      , a <- candidates
+      , not (Set.member a (planBackstory plan))
+      , Just b' <- [unifyAtoms b a (litAtom p)]
+      , not (any (deniedBy b' a) (Set.toList (planLinks plan)))
+      ]
+    deniedBy b' a l = linkFrom l == initStepId && not (litPositive (linkCond l)) && isJust (unifyAtoms b' a (litAtom (linkCond l)))
+    commit a pl =
+      pl
+        { planBackstory = Set.insert a (planBackstory pl)
+        , planSteps = IM.adjust (\s -> s {stepEff = pos a : stepEff s}) initStepId (planSteps pl)
+        }
     new =
       [ est
       | let k = planNextStep plan

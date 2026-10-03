@@ -1,0 +1,41 @@
+; Ticket 20 spike: a storm builds toward a flood that Ruby must stop. The ticks
+; are Happenings chained by their preconditions. The flood is the impending
+; consequence: it can happen, but no Story should reach it.
+(define (domain ticking-clock)
+  (:predicate-text
+    (raining) "it is raining"
+    (river-high) "the river is high"
+    (flooded ?t) "?t is flooded"
+    (protected ?t) "?t is protected"
+    (calm) "the weather is calm")
+
+  (:action storm
+    :parameters ()
+    :happening t
+    :precondition (calm)
+    :effect (and (not (calm)) (raining))
+    :text "A storm breaks over the valley.")
+
+  (:action river-rises
+    :parameters (?who ?t)
+    :happening t
+    :constraints (and (character ?who) (town ?t))
+    :precondition (raining)
+    :effect (and (river-high) (intends ?who (protected ?t)))
+    :text "The river rises toward ?t, and ?who sees what is coming.")
+
+  (:action flood
+    :parameters (?t)
+    :happening t
+    :constraints (town ?t)
+    :precondition (and (river-high) (not (protected ?t)))
+    :effect (flooded ?t)
+    :text "The river floods ?t.")
+
+  (:action sandbag
+    :parameters (?who ?t)
+    :actors (?who)
+    :constraints (and (character ?who) (town ?t))
+    :precondition (river-high)
+    :effect (protected ?t)
+    :text "?who sandbags the bank above ?t."))

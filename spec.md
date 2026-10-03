@@ -33,7 +33,8 @@ For comparison, the paper reports about 12 hours and 1.86 M generated nodes for 
 
 1. A library implementing the full algorithm of Figure 5: causal planning, motivation planning, intent planning,
    causal threats and intentional threats, with the completeness test of Definition 6.
-2. A POCL baseline mode (Figure 1) that uses the same code with intentionality turned off.
+2. ~~A POCL baseline mode (Figure 1) that uses the same code with intentionality turned off.~~ Removed; every plan is
+   planned and validated for intentionality (ADR-0006).
 3. Domain grounding, a reachability-based heuristic, weighted A* search with duplicate detection, and seeded
    randomisation.
 4. **Author preferences**: declarative steering in the problem file, compiled into heuristic penalties or hard pruning (§4.12).
@@ -203,7 +204,7 @@ data Step = Step { stepId :: StepId, ground :: Maybe GroundAction   -- Nothing f
                  , stepActors :: [Symbol], stepPre :: [Precond], stepEff :: [Literal], happening :: Bool }
 data CausalLink = CausalLink { clFrom :: StepId, clCond :: Literal, clTo :: StepId }
 data Frame = Frame { fId :: FrameId, fChar :: Symbol, fGoal :: Literal
-                   , fFinal :: Maybe StepId          -- always Just in v1; Nothing reserved for failed intentions (§9)
+                   , fFinal :: Maybe StepId          -- Nothing for a failed Frame (ADR-0003)
                    , fInterval :: IntSet, fMotivator :: Maybe StepId }
 data Flaw = OpenCond StepId Literal | CausalThreat StepId CausalLink | OpenMotivation FrameId
           | IntentFlaw StepId FrameId | IntentionalThreat FrameId FrameId
@@ -319,8 +320,7 @@ to be settled first.
 - for each intent flaw and threat: 1;
 - the soft penalties from author preferences (§4.12).
 
-`--heuristic paper` selects the Appendix A.1 domain-independent heuristic instead, for comparison. POCL mode drops the
-motivation, orphan, and intent terms.
+`--heuristic paper` selects the Appendix A.1 domain-independent heuristic instead, for comparison.
 
 ### 4.12 Author preferences (`IPOCL.Preference`)
 Preferences are declared in the problem file. Each one is either **hard**, meaning a child that violates it is pruned, or
@@ -342,6 +342,13 @@ Preferences are declared in the problem file. Each one is either **hard**, meani
 - `forbid-goal c L` penalises or prunes a Frame of `c` with that Character goal.
 - `max-frames c n` penalises the Frames beyond `n` for Character `c`.
 - `no-repeat-steps` penalises two Steps with the same ground action.
+- `max-backstory n` penalises backstory commitments beyond `n`. `:possible-backstory` lists facts and Intentions that the init Step may commit when an open condition needs them. Each commitment adds 3 (fact) or 7 (Intention) to `g`, which `(:backstory-cost :fact F :intention I)` can override.
+- `third-rail` penalises each Step with no path, through causal and motivation links, to the Protagonist's arc. The arc is the Steps in the Protagonist's Intervals, the Motivating steps of the Protagonist's Frames, and every Realization of a Protagonist Misbelief. The goal Step is not in the arc.
+- `serves-protagonist c` penalises each Frame of `c` whose final Step has no such path.
+
+Both relevance rules need a Protagonist. Unlike the other rules, their counts can **decrease**: a Step gains outgoing links when it is reused as an establisher, so a Step with no path now may get one later. The soft forms charge for the paths missing now, which makes them a heuristic estimate rather than a lower bound. The hard forms never prune partial plans. They are checked only at the goal test, where a complete plan that breaks one is a dead end.
+
+The validator lint "an internal change must lead to action" (`IPOCL.Lint.planWarnings`) warns about a Realization, or a Step that gives a Character an Intention, with no outgoing causal or motivation link to a later Step in which that Character is an Actor. It never rejects a plan.
 
 Aladdin's paper heuristic becomes the preferences above. Its "marry needs two frames" rule is not needed, because the
 joint-action rule (§2.1) already enforces it.
@@ -401,7 +408,7 @@ The Haskell EDSL comes first, and the text format is added in M6. A round-trip t
 ### 4.16 CLI
 
 ```
-narrative-planning solve DOMAIN PROBLEM [--mode ipocl|pocl] [--count N] [--seed N]
+narrative-planning solve DOMAIN PROBLEM [--count N] [--seed N]
     [--weight W | --greedy] [--heuristic default|paper] [--max-nodes N] [--timeout S]
     [--trace FILE] [--dot FILE] [--no-narrate]
 narrative-planning validate DOMAIN PROBLEM PLAN
@@ -413,7 +420,7 @@ narrative-planning builtin tower|bribe|aladdin [solve options]
 | # | Issue | Decision |
 |---|---|---|
 | D1 | Fig. 5 3a says "the character of `s_add`" (singular), but §4.5 gives `(e+1)^a` branching. | Each Actor chooses an effect or `nil` independently. |
-| D2 | What "intentional" means for joint actions. | Every Actor needs its own Frame that contains the Step. |
+| D2 | What "intentional" means for joint actions. | Every Actor needs its own Frame that contains the Step. The exception is an attempted Step (ADR-0003): only the failed Frame's Character needs a Frame for it, because the attempt never happens. |
 | D3 | Can Happenings be in Intervals? | Never. They get no frame discovery and no intent flaws. |
 | D4 | Figs. 1 and 5 resolve threats inside each refinement, while the A.3 trace treats threats as flaws. | Threats are agenda flaws. |
 | D5 | Condition 2 uses inconsistent indices, and discovery only runs for `s_add`. | Candidates are recomputed after every refinement (§4.6, ADR-0002). |
@@ -425,7 +432,7 @@ narrative-planning builtin tower|bribe|aladdin [solve options]
 | D11 | Can a reused Step become the final Step of a new Frame? | No, as in the paper. This keeps the search systematic. |
 | D12 | Fig. 15 has `married(K,J)` where the domain uses `married-to`. | Treated as a notational slip. |
 | D13 | Can an `intends(...)` effect or a negative literal be a Character goal? | Yes. |
-| D14 | Duplicate Frames with the same Character and Character goal. | Pruned (§4.6). |
+| D14 | Duplicate Frames with the same Character and Character goal. | Pruned (§4.6). The exception is one failed Frame ordered entirely before a successful Frame for the same goal, from a `:fail-first` Required Frame (ADR-0003). A second failed Frame for that goal is pruned. |
 | D15 | Init and goal Steps. | They have no Actors and are never Orphans. |
 
 ## 6. Milestones
@@ -437,7 +444,7 @@ Each milestone ends with green tests.
 3. **M2 Grounding and the POCL baseline**:
    - build `Ground`, `Plan`, `Init`, causal threats, `Refine` (open conditions and threats only), `Search`, `Validate.Plan`,
      and `Linearize`;
-   - acceptance: POCL solves Tower, and solves Aladdin in POCL mode.
+   - acceptance: POCL solves Tower, and solves Aladdin in POCL mode. (POCL mode was later removed, ADR-0006.)
 4. **M3 Frames and motivation**: frame discovery, open motivation flaws, motivation planning, Orphans, the IPOCL goal test.
 5. **M4 Intent planning and intentional threats**:
    - build intent candidates (conditions 1 and 2), Adopt and Reject, `frameOrder`, and the frame-order invariant;
@@ -460,15 +467,13 @@ Each milestone ends with green tests.
 - **Property tests** (QuickCheck):
   - no child has a cyclic `O` or an inconsistent `B`;
   - every solution passes `Validate.Plan`;
-  - on small random domains, a POCL-mode solution simulates correctly;
-  - an IPOCL solution exists only if a POCL solution exists;
   - duplicate detection never drops a plan with a new signature;
   - the same seed gives the same output.
 - **Equivalence tests** check that recomputed intent candidates equal Figure 5's eager formulation (frame discovery plus
   spreading activation) along sampled search paths.
 - **Scenario tests**:
-  - Tower: with no motivating actions, IPOCL returns `Exhausted` while POCL finds "princess kills king". With a variant that has
-    motivating actions, every Step is in an Interval.
+  - Tower: with no motivating actions, IPOCL returns `Exhausted`. With a variant that has motivating actions, every Step
+    is in an Interval.
   - Bribe: the Frames are Villain → `controls(vil, prez)` (motivated by `I`) and Hero → `has(vil, $)` (motivated by Coerce), and
     Coerce is in the Villain's Interval.
   - Aladdin: the benchmark in `bench/` (Level B) checks the Frame set against Fig. 15.
@@ -487,6 +492,6 @@ Each milestone ends with green tests.
 
 ## 9. Planned for Later Versions (design must not preclude)
 
-- **Failed intentions**: Frames with `fFinal = Nothing`, meaning the Character tried and failed or was pre-empted (§4.6 of the paper).
+- **Failed intentions**: Frames with `fFinal = Nothing`, meaning the Character tried and failed or was pre-empted (§4.6 of the paper). Implemented as blocked attempts from `:fail-first` Required Frames (ADR-0003, ticket 19). Pre-emption is expressed as a blocked attempt whose blocker is the pre-empting Step.
   v1 never creates them, but every function over Frames must handle `Nothing`.
-- **Author goals**: intermediate states the story must pass through (Riedl 2009), added as ordered pseudo-goal Steps.
+- **Author goals**: intermediate states the story must pass through (Riedl 2009), added as ordered pseudo-goal Steps. ADR-0005 recommends building them as Milestones, frameless Required Frames (ticket 20).

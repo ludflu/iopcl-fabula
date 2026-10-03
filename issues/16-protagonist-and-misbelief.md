@@ -42,13 +42,31 @@ Narration opens with the Protagonist's Misbelief and Desire, and narrates each R
 
 **Blocked by:** 07 (Text domain format), 08 (Narration and Graphviz), 15 (Required Frames).
 
-**Status:** todo
+**Status:** done
 
-- [ ] Parser, printer, and round-trip test for `:protagonist`, `:desire`, and `:misbeliefs`.
-- [ ] Each domain check above has a test, including the "doesn't stand in the way" warning firing and not firing.
-- [ ] New example domain, `domains/misbelief.ipocl`: the Desire is unreachable without a Realization. The planner finds a Story in which a Realization precedes the blocked Step, the Protagonist has a Frame for the Desire, and the Story passes validation.
-- [ ] With the Realization Actions removed, the same problem returns `Exhausted`.
-- [ ] A variant where the Realization is a side effect of an intentional Step works the same way.
-- [ ] Narration for the example opens with the Misbelief and Desire, and marks the Realization.
+- [x] Parser, printer, and round-trip test for `:protagonist`, `:desire`, and `:misbeliefs`.
+- [x] Each domain check above has a test, including the "doesn't stand in the way" warning firing and not firing.
+- [x] New example domain, `domains/misbelief.ipocl`: the Desire is unreachable without a Realization. The planner finds a Story in which a Realization precedes the blocked Step, the Protagonist has a Frame for the Desire, and the Story passes validation.
+- [x] With the Realization Actions removed, the same problem returns `Exhausted`.
+- [x] A variant where the Realization is a side effect of an intentional Step works the same way.
+- [x] Narration for the example opens with the Misbelief and Desire, and marks the Realization.
 
 **Notes:** Beliefs about what Actions will do, which Cron's scene questions and "expectation, broken" need, are out of scope.
+
+## Result
+
+`Problem` gains `problemProtagonist`, `problemDesire` and `problemMisbeliefs`, which are parsed and printed as `:protagonist`, `:desire` and `:misbeliefs`. `requiredFrames p` returns the declared Required Frames plus the Protagonist's Desire. `initialPlan`, validation and lint all use it, so the Desire needs no extra planning code.
+
+`checkProblem` reports these errors:
+- the Protagonist is not a Character;
+- there is a Desire but no Protagonist;
+- `intends(protagonist, desire)` is missing from the initial state;
+- a Misbelief is not a `believes` fact, does not hold initially, or does not start with a Character.
+
+`IPOCL.Lint` warns when no ground action has an effect that negates a Misbelief. It also warns when the Desire stays reachable after removing every action that negates one of the Protagonist's own Misbeliefs.
+
+In `domains/misbelief.ipocl`, the belief is a literal-valued term, `(believes ruby (dangerous love))`. That lets predicate text render the Realization as "ruby realizes it is not the case that love is dangerous." Beliefs given as plain symbols are narrated as "… no longer believes x". The domain has two Realizations:
+- `near-loss` is a Happening;
+- `rescue` is an intentional Step that has the Realization as a side effect.
+
+Removing both leaves the search `Exhausted`. Narration opens with each Misbelief and then the init-motivated "wants" lines, and gives each Realization its own line after its Step.

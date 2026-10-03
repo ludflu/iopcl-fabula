@@ -55,7 +55,7 @@ planDescription ::
   , [(Name, Text)]
   , [(Name, FrameKey)]
   , [(Name, FrameKey)]
-  , [(Text, Text)]
+  , ([(Text, Text)], [Text])
   )
 planDescription plan =
     ( sort (map (stepName . stepId) steps)
@@ -66,7 +66,9 @@ planDescription plan =
     , sort [(stepName s, literal l) | (s, l) <- planOpenConds plan]
     , sort [(stepName s, frameName f) | (s, f) <- planPendingIntent plan]
     , sort [(stepName s, frameName f) | (s, f) <- Set.toList (planProposedIntent plan)]
-    , sort [(prettyTerm (resolve bs x), prettyTerm (resolve bs y)) | (x, y) <- neqConstraints bs]
+    , ( sort [(prettyTerm (resolve bs x), prettyTerm (resolve bs y)) | (x, y) <- neqConstraints bs]
+      , map prettyAtom (Set.toList (planBackstory plan))
+      )
     )
   where
     bs = planBindings plan
@@ -109,14 +111,16 @@ instance (Digest a, Digest b, Digest c, Digest d, Digest e) => Digest (a, b, c, 
 instance (Digest a, Digest b, Digest c, Digest d, Digest e, Digest f, Digest g, Digest i, Digest j) => Digest (a, b, c, d, e, f, g, i, j) where
   digest h (a, b, c, d, e, f, g, i, j) = digest h (a, (b, (c, (d, (e, (f, (g, (i, j))))))))
 
--- | Stories count as different when their ground Steps or their
--- (Character, Character goal) pairs differ.
-type StorySignature = ([Text], Set (Text, Text))
+-- | Stories count as different when their ground Steps, their
+-- (Character, Character goal) pairs or their backstory differ. Attempted Steps
+-- and failed Frames are marked, so they differ from executed and successful ones.
+type StorySignature = ([Text], Set (Text, Text), Set Atom)
 
 storySignature :: Plan -> StorySignature
 storySignature plan =
-  ( sort (map (stepLabel plan) (actionSteps plan))
-  , Set.fromList [(symbolText (frameCharacter f), prettyLiteral (resolvedGoal plan f)) | f <- IM.elems (planFrames plan)]
+  ( sort [stepLabel plan s <> (if isUnexecuted plan (stepId s) then " (attempt)" else "") | s <- actionSteps plan]
+  , Set.fromList [(symbolText (frameCharacter f), prettyLiteral (resolvedGoal plan f) <> maybe "" (const " (fails)") (frameAttempt f)) | f <- IM.elems (planFrames plan)]
+  , planBackstory plan
   )
 
 -- | Keep the items whose key has not been seen, in order, and extend the seen set.

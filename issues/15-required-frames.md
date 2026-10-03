@@ -22,14 +22,22 @@ Rules:
 
 **Blocked by:** 06 (Joint actions and intentional threats), 09 (Heuristic search), 11 (Author preferences).
 
-**Status:** todo
+**Status:** done
 
-- [ ] Parser, printer, and round-trip test for `:required-frames`.
-- [ ] Domain checks reject an unknown Character, and warn when a required Character goal is unreachable.
-- [ ] On Bribe, requiring the Hero to hold a Frame for `has(villain, money)` gives the same Story as today. Requiring a Frame the Outcome doesn't need adds Steps for it.
-- [ ] A Story never satisfies a Required Frame through another Character's Frame, or through a Step that isn't in any Frame.
-- [ ] Every Story passes validation, and validation checks Required Frames independently of the search code.
-- [ ] A test where a later Step undoes the required Character goal still yields a valid Story.
-- [ ] Pseudo-steps are never narrated, are not Orphans, and are left out of story signatures.
+- [x] Parser, printer, and round-trip test for `:required-frames`.
+- [x] Domain checks reject an unknown Character, and warn when a required Character goal is unreachable.
+- [x] On Bribe, requiring the Hero to hold a Frame for `has(villain, money)` gives the same Story as today. Requiring a Frame the Outcome doesn't need adds Steps for it.
+- [x] A Story never satisfies a Required Frame through another Character's Frame, or through a Step that isn't in any Frame.
+- [x] Every Story passes validation, and validation checks Required Frames independently of the search code.
+- [x] A test where a later Step undoes the required Character goal still yields a valid Story.
+- [x] Pseudo-steps are never narrated, are not Orphans, and are left out of story signatures.
 
 **Notes:** See ADR-0004. Ticket 19 extends Required Frames with `:fail-first`. The pseudo-step is the building block that the "author goals" in `spec.md` §9 would also use.
+
+## Result
+
+`Problem` has `problemRequiredFrames :: [RequiredFrame]`. `initialPlan` adds one pseudo-step per Required Frame, with ids 2 and up. A pseudo-step has no action and is a Happening, so it is never an Orphan and gets no Frame. `planRequired` maps each pseudo-step to its Character. `actionSteps` and the new `isActionStep` now mean "has an action", so narration, scene cards, the report, story signatures and preferences skip pseudo-steps.
+
+`openCondition` drops any child whose establisher of a pseudo-step's condition is not the final Step of a Frame with that Character and an equal resolved goal. The check runs after frame discovery, so it covers new Steps (whatever choice discovery made) and reused Steps (D11) the same way. POCL mode ignores the restriction. The heuristic adds 1 plus the h_add cost of `intends(c, g)` for each unsatisfied Required Frame. Validation checks each Required Frame independently: a matching pseudo-step must exist, with a link from the final Step of a matching Frame.
+
+The new `IPOCL.Lint` module (`problemWarnings`) warns when a required goal, or the Intention behind it, is unreachable. The CLI prints these warnings to stderr as `warning: …` and keeps going. The Aladdin bench is unchanged at 203247 expanded and 493512 generated.

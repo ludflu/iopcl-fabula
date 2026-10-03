@@ -31,6 +31,12 @@ module IPOCL.Syntax
   , Strength (..)
   , PreferenceRule (..)
   , Preference (..)
+  , RequiredFrame (..)
+  , BackstoryCost (..)
+  , defaultBackstoryCost
+  , backstoryCost
+  , requiredFrames
+  , believesPredicate
   , Problem (..)
   , schemaByName
     -- * Embedded DSL
@@ -139,6 +145,8 @@ data ActionSchema = ActionSchema
   , schemaPrecondition :: ![Precond]
   , schemaEffect :: ![Literal]
   , schemaText :: !(Maybe Template)
+  , schemaAttemptText :: !(Maybe Template)
+  -- ^ Narration for a blocked attempt, e.g. @"?a tries to tell ?b she loves him"@.
   }
   deriving (Eq, Show)
 
@@ -165,9 +173,18 @@ data PreferenceRule
   | ForbidGoal !Symbol !Literal
   | MaxFrames !Symbol !Int
   | NoRepeatSteps
+  | ThirdRail
+  | ServesProtagonist !Symbol
+  | MaxBackstory !Int
+  | MisbeliefBlocks
   deriving (Eq, Show)
 
 data Preference = Preference {prefRule :: !PreferenceRule, prefStrength :: !Strength}
+  deriving (Eq, Show)
+
+-- | A Frame every Story must contain (ADR-0004). With 'rfFailFirst', a failed
+-- Frame for the same goal must come first (ADR-0003).
+data RequiredFrame = RequiredFrame {rfCharacter :: !Symbol, rfGoal :: !Literal, rfFailFirst :: !Bool}
   deriving (Eq, Show)
 
 data Problem = Problem
@@ -177,8 +194,44 @@ data Problem = Problem
   , problemInit :: !(Set Atom)
   , problemOutcome :: ![Literal]
   , problemPreferences :: ![Preference]
+  , problemRequiredFrames :: ![RequiredFrame]
+  , problemProtagonist :: !(Maybe Symbol)
+  , problemDesire :: !(Maybe Literal)
+  , problemMisbeliefs :: ![Atom]
+  , problemBackstory :: ![Atom]
+  -- ^ Facts and Intentions the planner may commit to the initial state.
+  , problemBackstoryCost :: !BackstoryCost
   }
   deriving (Eq, Show)
+
+-- | What committing one backstory literal adds to the plan cost @g@. Intentions
+-- cost more: a Frame they motivate skips motivation planning. Below 7, Aladdin's
+-- first Story swaps an order Step for backstory at the default weight 2
+-- (checked by bench/Aladdin.hs).
+data BackstoryCost = BackstoryCost {bcFact :: !Int, bcIntention :: !Int}
+  deriving (Eq, Show)
+
+defaultBackstoryCost :: BackstoryCost
+defaultBackstoryCost = BackstoryCost 3 7
+
+backstoryCost :: Problem -> Atom -> Int
+backstoryCost p a
+  | atomPredicate a == intendsPredicate = bcIntention (problemBackstoryCost p)
+  | otherwise = bcFact (problemBackstoryCost p)
+
+-- | The declared Required Frames plus the Protagonist's Desire.
+requiredFrames :: Problem -> [RequiredFrame]
+requiredFrames p =
+  problemRequiredFrames p
+    ++ [ RequiredFrame c g False
+       | Just c <- [problemProtagonist p]
+       , Just g <- [problemDesire p]
+       , not (any (\r -> rfCharacter r == c && rfGoal r == g) (problemRequiredFrames p))
+       ]
+
+-- | Misbeliefs are (character, b)@ facts.
+believesPredicate :: Text
+believesPredicate = "believes"
 
 schemaByName :: Domain -> Text -> Maybe ActionSchema
 schemaByName d n = find ((== n) . schemaName) (domainSchemas d)
@@ -217,6 +270,7 @@ schema n ps =
     , schemaPrecondition = []
     , schemaEffect = []
     , schemaText = Nothing
+    , schemaAttemptText = Nothing
     }
 
 -- | Split @"?slayer slays ?monster."@ into text and parameter parts.
@@ -243,4 +297,10 @@ problem n d cs i g =
     , problemInit = Set.fromList i
     , problemOutcome = g
     , problemPreferences = []
+    , problemRequiredFrames = []
+    , problemProtagonist = Nothing
+    , problemDesire = Nothing
+    , problemMisbeliefs = []
+    , problemBackstory = []
+    , problemBackstoryCost = defaultBackstoryCost
     }

@@ -1,0 +1,34 @@
+; Ruby loves Henry but believes love is dangerous. Nearly losing him, by
+; chance or while saving him, is what changes her mind.
+(define (domain misbelief)
+  (:predicate-text
+    (believes ?a ?b) "?a believes ?b"
+    (dangerous ?a) "?a is dangerous"
+    (loves ?a ?b) "?a loves ?b"
+    (in-danger ?a) "?a is in danger"
+    (reunited ?a ?b) "?a is with ?b")
+
+  (:action confess-love
+    :parameters (?a ?b)
+    :actors (?a)
+    :constraints (and (character ?a) (character ?b))
+    :precondition (and (loves ?a ?b) (not (believes ?a (dangerous love))) (neq ?a ?b))
+    :effect (reunited ?a ?b)
+    :text "?a tells ?b she loves him."
+    :attempt-text "?a tries to tell ?b she loves him")
+
+  (:action near-loss
+    :parameters (?a ?b)
+    :happening t
+    :constraints (and (character ?a) (character ?b))
+    :precondition (and (loves ?a ?b) (in-danger ?b))
+    :effect (not (believes ?a (dangerous love)))
+    :text "?a almost loses ?b.")
+
+  (:action rescue
+    :parameters (?a ?b)
+    :actors (?a)
+    :constraints (and (character ?a) (character ?b))
+    :precondition (and (in-danger ?b) (neq ?a ?b))
+    :effect (and (not (in-danger ?b)) (not (believes ?a (dangerous love))))
+    :text "?a pulls ?b from the river."))

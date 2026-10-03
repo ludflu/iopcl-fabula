@@ -1,0 +1,16 @@
+(define (problem misbelief-1)
+  (:domain misbelief)
+  (:agents ruby henry)
+  (:init
+    (character ruby)
+    (character henry)
+    (loves ruby henry)
+    (in-danger henry)
+    (believes ruby (dangerous love))
+    (intends ruby (reunited ruby henry))
+    (intends ruby (not (in-danger henry))))
+  (:goal (reunited ruby henry))
+  (:protagonist ruby)
+  (:desire (reunited ruby henry))
+  (:misbeliefs
+    (believes ruby (dangerous love))))

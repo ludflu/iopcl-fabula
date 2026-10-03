@@ -1,6 +1,7 @@
 -- | Graphviz rendering of a plan in the style of Fig. 15.
 --
--- Steps are boxes; init and goal are grey ellipses. Causal links are solid
+-- Steps are boxes (dashed for Happenings, dotted for attempted Steps); init and
+-- goal are grey ellipses. Causal links are solid
 -- edges labelled with their conditions, orderings added to resolve threats are
 -- dashed, and each Frame is a cluster labelled @character: goal@ with a dotted
 -- motivation link from its Motivating step into the cluster.
@@ -49,13 +50,16 @@ planToDot p plan =
         ++ ["  }"]
     frameLabel f = symbolText (frameCharacter f) <> ": " <> prettyLiteral (resolvedGoal plan f)
     nodeLine s
-      | stepId s == initStepId || stepId s == goalStepId =
+      | not (isActionStep s) =
           node s <> " [label=" <> quote (stepLabel plan s) <> ", shape=ellipse, style=filled, fillcolor=lightgrey];"
       | otherwise = node s <> " [label=" <> quote (stepLabel plan s <> alsoIn s) <> happening s <> "];"
     alsoIn s = case [frameId f | f <- frames, IS.member (stepId s) (frameInterval f), home (stepId s) /= Just (frameId f)] of
       [] -> ""
       fs -> "\nalso in frame " <> T.intercalate ", " (map showT fs)
-    happening s = if stepHappening s then ", style=dashed" else ""
+    happening s
+      | isUnexecuted plan (stepId s) = ", style=dotted"
+      | stepHappening s = ", style=dashed"
+      | otherwise = ""
     causalEdges =
       [ nodeId a <> " -> " <> nodeId b <> " [label=" <> quote (T.intercalate "\n" conds) <> "];"
       | ((a, b), conds) <- Map.toList linkGroups
