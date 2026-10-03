@@ -109,6 +109,9 @@ spec = do
       let domain = oneAction (valid <> "    :effect (done ?x)")
       check domain (simpleProblem "\n  (:protagonist hero)\n  (:preferences (third-rail))") `shouldSatisfy` either (const False) (const True)
       check domain (simpleProblem "\n  (:preferences (third-rail))") `shouldFailWith` "p.ipocl:2:17: preference third-rail needs a protagonist"
+    it "blames the problem file for problem issues outside preferences" $
+      check (oneAction (valid <> "    :effect (done ?x)")) (simpleProblem "\n  (:protagonist hero)\n  (:desire (done hero))")
+        `shouldFailWith` "p.ipocl: the protagonist hero does not intend the desire done(hero) in the initial state"
     it "reports unreadable files" $ do
       r <- loadProblem "domains/no-such-file.ipocl" "domains/tiny-problem.ipocl"
       r `shouldFailWith` "no-such-file"

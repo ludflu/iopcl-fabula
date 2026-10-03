@@ -39,7 +39,7 @@ checkedProblem :: FilePath -> Text -> FilePath -> Text -> Either Text Problem
 checkedProblem dPath dText pPath pText = do
   (d, actionPos) <- runP domainFile dPath dText
   (p, prefPos) <- runP (problemFile d) pPath pText
-  let schemaIssues = map (locateAction dPath actionPos) (checkProblem p {problemPreferences = []})
+  let schemaIssues = map (locateAction pPath actionPos) (checkProblem p {problemPreferences = []})
       prefIssues =
         [ located sp issue
         | (pr, sp) <- zip (problemPreferences p) prefPos
@@ -63,11 +63,12 @@ runP p path src = either (Left . T.pack . errorBundlePretty) Right (parse p path
 located :: SourcePos -> Text -> Text
 located sp msg = T.pack (sourcePosPretty sp) <> ": " <> msg
 
+-- | Action issues point into the domain file; the rest are about the problem.
 locateAction :: FilePath -> [(Text, SourcePos)] -> Text -> Text
-locateAction path actionPos issue =
+locateAction problemPath actionPos issue =
   case find (\(n, _) -> ("action " <> n <> ": ") `T.isPrefixOf` issue) actionPos of
     Just (_, sp) -> located sp issue
-    Nothing -> T.pack path <> ": " <> issue
+    Nothing -> T.pack problemPath <> ": " <> issue
 
 -- Lexing ------------------------------------------------------------------
 

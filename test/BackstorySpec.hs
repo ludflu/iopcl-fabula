@@ -107,11 +107,11 @@ spec = describe "backstory on demand" $ do
       let other = s {planBackstory = Set.insert (atom "owns" ["ruby", "house"]) (planBackstory s)}
       storySignature other `shouldNotBe` storySignature s
       planSignature other `shouldNotBe` planSignature s
-    it "charges commitment cost in the heuristic" $ do
+    it "makes backstory facts free in the heuristic, but not Intentions" $ do
       let p = (withBackstory houseProblem) {problemBackstory = [owns, Atom intendsPredicate [TSym "ruby", TLit (lit "homeless" ["nora"])]]}
           r = problemReachability p
-      literalCost r emptyBindings (pos owns) `shouldBe` Just 3
-      literalCost r emptyBindings (lit "homeless" ["ruby"]) `shouldBe` Just 4
+      literalCost r emptyBindings (pos owns) `shouldBe` Just 0
+      literalCost r emptyBindings (lit "homeless" ["ruby"]) `shouldBe` Just 1
       literalCost r emptyBindings (intends "ruby" (Right (lit "homeless" ["nora"]))) `shouldBe` Just 7
       literalCost (problemReachability houseProblem) emptyBindings (pos owns) `shouldBe` Nothing
     it "caps commitments with max-backstory" $ do

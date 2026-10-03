@@ -1,0 +1,44 @@
+(define (problem aladdin-inner-1)
+  (:domain aladdin-inner)
+  (:agents aladdin jafar jasmine dragon genie)
+  (:init
+    ; Aladdin, the king's loyal knight, who thinks a knight unworthy of a princess
+    (character aladdin) (male aladdin) (knight aladdin)
+    (at aladdin castle) (alive aladdin) (single aladdin)
+    (loyal-to aladdin jafar)
+    (believes aladdin (unworthy aladdin))
+    (loves aladdin jasmine)
+    (intends aladdin (married-to aladdin jasmine))
+    ; Jafar, the king
+    (character jafar) (male jafar) (king jafar)
+    (at jafar castle) (alive jafar) (single jafar)
+    ; Jasmine
+    (character jasmine) (female jasmine)
+    (at jasmine castle) (alive jasmine) (single jasmine) (beautiful jasmine)
+    ; the dragon
+    (character dragon) (monster dragon) (dragon dragon)
+    (at dragon mountain) (alive dragon) (scary dragon)
+    ; the genie, confined in the lamp
+    (character genie) (monster genie) (genie genie)
+    (in genie lamp) (confined genie) (alive genie) (scary genie)
+    ; places and things
+    (place castle) (place mountain)
+    (thing lamp) (magic-lamp lamp))
+  (:goal (married-to aladdin jasmine))
+  (:protagonist aladdin)
+  (:desire (married-to aladdin jasmine))
+  (:misbeliefs
+    (believes aladdin (unworthy aladdin)))
+  ; What the planner may decide was already true when the Story begins.
+  (:possible-backstory
+    (has dragon lamp))
+  (:preferences
+    (allow-goals aladdin (married-to aladdin jasmine) (not (alive dragon)) (not (alive genie))
+      (has aladdin lamp) (has jafar lamp) :hard)
+    (allow-goals jafar (has jafar lamp) (married-to jafar jasmine) :hard)
+    (allow-goals jasmine (married-to jasmine aladdin) (married-to jasmine jafar) :hard)
+    (allow-goals genie (loves jasmine aladdin) (loves jasmine jafar) :hard)
+    (allow-goals dragon :hard)
+    (no-repeat-steps :hard)
+    (max-backstory 3 :hard)
+    (third-rail)))

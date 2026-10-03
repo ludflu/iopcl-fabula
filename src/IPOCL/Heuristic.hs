@@ -48,13 +48,16 @@ data Reachability = Reachability
 reachability :: Set Atom -> [GroundAction] -> Reachability
 reachability = reachabilityWith Map.empty
 
--- | Reachability for a problem, with its possible backstory reachable at
--- commitment cost.
+-- | Reachability for a problem, with its possible backstory reachable.
 problemReachability :: Problem -> Reachability
 problemReachability p = reachabilityWith (backstorySeeds p) (problemInit p) (groundActions p)
 
+-- | Facts are seeded at 0: additive costs would charge one commitment again
+-- for every open condition that depends on it, and 'g' already charges it
+-- once. Intentions keep their commitment cost, or the search prefers them to
+-- motivating Steps.
 backstorySeeds :: Problem -> Map Atom Int
-backstorySeeds p = Map.fromList [(a, backstoryCost p a) | a <- problemBackstory p]
+backstorySeeds p = Map.fromList [(a, if isIntends (pos a) then backstoryCost p a else 0) | a <- problemBackstory p]
 
 -- | Seeded facts start at their given cost. Like initial facts, they get no
 -- closed-world support for their negation.

@@ -43,8 +43,22 @@ narrate p plan = T.unlines (map believes (problemMisbeliefs p) ++ concatMap step
       , not (litPositive e)
       , let m = litAtom (resolveLiteral (planBindings plan) e)
       , m `elem` problemMisbeliefs p
+      , heldBefore m s
       , TSym c : belief : _ <- [atomArgs m]
       ]
+    -- Misbeliefs hold initially; the last executed Step before s that
+    -- changes one decides whether it still holds.
+    heldBefore m s =
+      let earlier = takeWhile ((/= stepId s) . stepId) order
+          changes =
+            [ litPositive e
+            | t <- earlier
+            , isActionStep t
+            , not (isUnexecuted plan (stepId t))
+            , e <- stepEff t
+            , litAtom (resolveLiteral (planBindings plan) e) == m
+            ]
+       in null changes || last changes
     realized = \case
       TLit l -> " realizes " <> renderLiteral d (negateLit l)
       t -> " no longer believes " <> renderTerm d t

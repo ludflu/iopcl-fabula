@@ -28,7 +28,7 @@ Consistency rules:
 - [x] A test where one Step needs `p` and another needs `¬p` from the init Step: the plan that commits `p` can't also use closed-world support for `¬p`.
 - [x] Every Story passes validation when the committed literals are added to the initial state.
 - [x] Committed literals are part of the story signature, so two Stories that differ only in their backstory count as distinct.
-- [x] The heuristic treats a possible-backstory literal as reachable at commitment cost.
+- [x] The heuristic treats a possible-backstory literal as reachable at commitment cost. (Since changed for facts; see **Heuristic change** below.)
 - [x] Aladdin's Stories are unchanged when the problem has no `:possible-backstory`, and still keep their `order` Steps when it lists Intentions those Steps could otherwise supply.
 - [x] `max-backstory` has hard and soft tests.
 - [x] Parser, printer, and round-trip test.
@@ -47,3 +47,5 @@ Other changes:
 - `(max-backstory n)` counts commitments beyond `n`. That count only grows, so the hard form prunes safely.
 
 **Cost change:** the default Intention cost is **7**, not 5. With 5, Aladdin's first Story with the order Intentions listed as backstory dropped `order(jafar, aladdin, castle, ¬alive(dragon))` for a committed Intention at the default weight 2. Its `g` was 22 against 18, but weighted A* reached it first. Costs 7, 10 and 15 all keep the order Steps. `bench/Aladdin.hs` now checks this case, and the Aladdin counts without backstory are unchanged (203247/493512).
+
+**Heuristic change (after closing):** reachability now seeds backstory *facts* at 0 and keeps Intentions at commitment cost. The additive heuristic adds the commitment cost again for every open condition that depends on the fact. In `domains/aladdin-inner-problem.ipocl`, where the dragon's lamp is backstory, that made the lamp route look much more expensive than it was: no Story in 2.4M expansions, against 30k now for three Stories. `g` still charges each commitment once. Free Intentions were tried and rejected, because Aladdin's `order` Steps were then replaced by a committed Intention.
