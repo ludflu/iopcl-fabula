@@ -123,3 +123,15 @@ benchmark aladdin
         containers,
         text,
         narrative-planning
+
+benchmark compare-parallel-aladdin
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   bench
+    main-is:          CompareParallelAladdin.hs
+    ghc-options:      -threaded -rtsopts
+    build-depends:
+        base,
+        containers,
+        text,
+        narrative-planning
