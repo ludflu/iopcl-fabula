@@ -29,6 +29,7 @@ formatEvent = \case
     where
       label s = maybe "?" (stepLabel evPlan) (IM.lookup s (planSteps evPlan))
   FoundSolution {..} -> "solution found: plan " <> tshow evNode <> "\n"
+  GaveUp -> "search gave up\n"
 
 describeFlaw :: Plan -> Flaw -> Text
 describeFlaw plan = \case

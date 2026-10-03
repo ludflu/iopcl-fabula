@@ -4,7 +4,12 @@ module IPOCL.Search
   ( SearchConfig (..)
   , defaultSearchConfig
   , SearchEvent (..)
+  , Strategy (..)
+  , MctsParams (..)
+  , defaultMctsParams
   , search
+  , planPriority
+  , tieBreak
   , mix64
   ) where
 
@@ -12,6 +17,7 @@ import Data.Bits (xor)
 import Data.IntMap.Strict qualified as IM
 import Data.Set qualified as Set
 import Data.Text (Text)
+import Data.Word (Word64)
 import IPOCL.Plan
 import IPOCL.Refine
 import IPOCL.Signature (PlanSignature, dedupeBy, mix64)
@@ -50,6 +56,41 @@ data SearchEvent
       , evPlan :: !Plan
       }
   | FoundSolution {evNode :: !Int, evPlan :: !Plan}
+  | GaveUp
+  -- ^ An incomplete strategy stopped on its own; the space was not
+  -- exhausted (ADR-0007).
+
+-- | How to explore the space of partial plans.
+data Strategy
+  = BestFirst
+  | Beam !Int
+  -- ^ Layered beam search keeping this many plans per layer (ticket 26).
+  | Mcts !MctsParams
+  -- ^ Monte Carlo tree search (ticket 27).
+  deriving (Eq, Show)
+
+data MctsParams = MctsParams
+  { mctsExploration :: !Double
+  -- ^ The UCB1 exploration constant.
+  , mctsRolloutDepth :: !Int
+  -- ^ Refinements before a rollout is cut off.
+  }
+  deriving (Eq, Show)
+
+defaultMctsParams :: MctsParams
+defaultMctsParams = MctsParams {mctsExploration = sqrt 2, mctsRolloutDepth = 150}
+
+-- | Best-first priority @g + w * h@ of a plan at a given search depth;
+-- 'Nothing' when the plan is hopeless.
+planPriority :: SearchConfig -> Int -> Plan -> Maybe Double
+planPriority cfg d p = do
+  h <- scHeuristic cfg p
+  let g = if scGreedy cfg then 0 else fromIntegral (scCost cfg d p)
+  Just (g + scWeight cfg * fromIntegral h)
+
+-- | Seeded tie-break for plans of equal priority, given the node number.
+tieBreak :: SearchConfig -> Int -> Word64
+tieBreak cfg i = mix64 (fromIntegral (scSeed cfg) `xor` fromIntegral i)
 
 data Node = Node
   { nDepth :: !Int
@@ -63,13 +104,7 @@ search :: Env -> SearchConfig -> Plan -> [SearchEvent]
 search env cfg root = go (maybe Set.empty Set.singleton (key 0 0 root)) (IM.singleton 0 (Node 0 Nothing "initial plan" root)) 1 seen0
   where
     seen0 = maybe Set.empty (\sig -> Set.singleton (sig root)) (scSignature cfg)
-    key d i p = case priority d p of
-      Just f -> Just (f, mix64 (fromIntegral (scSeed cfg) `xor` fromIntegral i), i)
-      Nothing -> Nothing
-    priority d p = do
-      h <- scHeuristic cfg p
-      let g = if scGreedy cfg then 0 else fromIntegral (scCost cfg d p)
-      Just (g + scWeight cfg * fromIntegral h :: Double)
+    key d i p = (,tieBreak cfg i,i) <$> planPriority cfg d p
     go frontier nodes next seen = case Set.minView frontier of
       Nothing -> []
       Just ((_, _, i), rest) ->

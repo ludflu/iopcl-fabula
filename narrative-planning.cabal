@@ -35,6 +35,8 @@ library
         IPOCL.Heuristic
         IPOCL.Trace
         IPOCL.Search
+        IPOCL.Beam
+        IPOCL.Mcts
         IPOCL.Validate
         IPOCL.Linearize
         IPOCL.Lint
@@ -95,6 +97,8 @@ test-suite spec
         BackstorySpec
         FailedSpec
         TickingSpec
+        BeamSpec
+        MctsSpec
     build-depends:
         base,
         containers,

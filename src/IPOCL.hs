@@ -7,13 +7,18 @@ module IPOCL
   , solve
   , solvePure
   , HeuristicChoice (..)
+  , Strategy (..)
+  , MctsParams (..)
+  , defaultMctsParams
   , module IPOCL.Plan
   ) where
 
 import Data.IORef
 import Data.Set qualified as Set
 import GHC.Clock (getMonotonicTime)
+import IPOCL.Beam
 import IPOCL.Heuristic
+import IPOCL.Mcts
 import IPOCL.Plan
 import IPOCL.Preferences (softPenalty)
 import IPOCL.Refine
@@ -22,7 +27,8 @@ import IPOCL.Signature
 import IPOCL.Syntax
 
 data SolveConfig = SolveConfig
-  { cfgMaxExpanded :: !(Maybe Int)
+  { cfgStrategy :: !Strategy
+  , cfgMaxExpanded :: !(Maybe Int)
   , cfgTimeout :: !(Maybe Double)
   -- ^ Seconds of wall-clock time.
   , cfgCount :: !Int
@@ -45,7 +51,8 @@ data SolveConfig = SolveConfig
 defaultSolveConfig :: SolveConfig
 defaultSolveConfig =
   SolveConfig
-    { cfgMaxExpanded = Just 200000
+    { cfgStrategy = BestFirst
+    , cfgMaxExpanded = Just 200000
     , cfgTimeout = Nothing
     , cfgCount = 1
     , cfgTrace = Nothing
@@ -70,7 +77,7 @@ data Result = Result
 
 -- | The search stream, keeping only the first Story with each 'StorySignature'.
 events :: SolveConfig -> Problem -> [SearchEvent]
-events cfg p = distinct Set.empty (search env searchCfg (initialPlan p))
+events cfg p = distinct Set.empty (run env searchCfg (initialPlan p))
   where
     distinct seen = \case
       [] -> []
@@ -78,6 +85,10 @@ events cfg p = distinct Set.empty (search env searchCfg (initialPlan p))
         | Set.member (storySignature plan) seen -> distinct seen rest
         | otherwise -> ev : distinct (Set.insert (storySignature plan) seen) rest
       ev : rest -> ev : distinct seen rest
+    run = case cfgStrategy cfg of
+      BestFirst -> search
+      Beam width -> beamSearch width
+      Mcts params -> mctsSearch params
     r = problemReachability p
     env = mkEnvWith p (reachableActions r)
     searchCfg =
@@ -107,6 +118,7 @@ solvePure cfg p = go 0 0 [] (events cfg p)
         Visited {evChildren = n}
           | Just m <- cfgMaxExpanded cfg, expanded >= m -> Result LimitHit (reverse found) expanded generated
           | otherwise -> go (expanded + 1) (generated + n) found rest
+        GaveUp -> Result LimitHit (reverse found) expanded generated
 
 -- | Solve, honouring the time-out and streaming trace events.
 solve :: SolveConfig -> Problem -> IO Result
@@ -134,4 +146,5 @@ solve cfg p = do
               if overTime || overNodes
                 then finish LimitHit expanded generated
                 else go (expanded + 1) (generated + k) rest
+            GaveUp -> finish LimitHit expanded generated
   go 0 0 (events cfg p)
